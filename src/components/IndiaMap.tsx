@@ -25,13 +25,16 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, onState
   return (
     <div className="relative" onMouseLeave={() => { setTip(null); setHoverState(null); }}>
       <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="India map of samples">
+        <g className="map-outline pointer-events-none">
+          {fc.features.map((f, i) => <path key={i} d={path(f) ?? ""} />)}
+        </g>
         {ordered.map((f) => {
           const n = nice((f.properties as { NAME_1: string }).NAME_1);
           const st = all.filter((s) => s.state === n);
           const c = st.filter((s) => carriers.has(s.id)).length;
-          const cls = !active ? "fill-muted stroke-border hover:fill-accent" : n === "Maharashtra" ? "fill-mh/30 stroke-mh" : n === "Odisha" ? "fill-od/30 stroke-od" : "fill-muted stroke-border hover:fill-accent";
+          const cls = !active ? "fill-muted hover:fill-accent" : n === "Maharashtra" ? "fill-mh/30" : n === "Odisha" ? "fill-od/30" : "fill-muted hover:fill-accent";
           return (
-            <path key={n} d={path(f) ?? ""} className={`map-state ${cls} ${focus && active && focus !== n ? "opacity-40" : ""} stroke-[0.7]`}
+            <path key={n} d={path(f) ?? ""} className={`map-state ${cls} ${focus && active && focus !== n ? "opacity-40" : ""} stroke-[0.9]`}
               onClick={() => onStateClick(n)}
               onMouseMove={(e) => {
                 setHoverState(n);

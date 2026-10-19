@@ -33,8 +33,8 @@ function Panel({ icon: Icon, title, children, className = "" }: { icon: typeof D
 }
 
 function Index() {
-  const [key, setKey] = useState(snps.find((s) => s.position === 12964)?.key ?? snps[0].key);
-  const snp = snps.find((s) => s.key === key)!;
+  const [key, setKey] = useState(snps.find((s) => s.position === 12964)?.key ?? snps[0]?.key ?? "");
+  const snp = snps.find((s) => s.key === key) ?? snps[0]!;
   const hits = useMemo(() => samplesWithSnp(snp), [snp]);
   const carriers = useMemo(() => new Set(hits.map((h) => h.id)), [hits]);
   const mh = hits.filter((h) => h.state === "Maharashtra").length;

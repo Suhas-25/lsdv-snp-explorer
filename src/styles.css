@@ -158,3 +158,20 @@
   .snp-select { background: var(--card); color: var(--foreground); border-radius: 0.5rem; padding: 0.6rem 0.75rem; font-family: var(--font-mono); font-weight: 600; border: 0; outline: none; }
   .snp-select:focus { box-shadow: 0 0 0 3px oklch(1 0 0 / 40%); }
 }
+
+@layer components {
+  .panel-hover { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+  .panel-hover:hover { border-color: color-mix(in oklab, var(--primary) 35%, var(--border)); box-shadow: 0 14px 34px -14px oklch(0.4 0.09 175 / 30%); }
+  .stat-pop:hover { transform: translateY(-4px); }
+  .tile-pop { transition: transform .2s ease, background .2s ease; }
+  .tile-pop:hover { transform: scale(1.05); background: var(--accent); }
+  .row-hover { transition: background .15s ease; cursor: pointer; }
+  .row-hover:hover, .row-active { background: var(--accent); }
+  .bar-pop { transition: transform .2s ease, filter .2s ease; transform-origin: bottom; cursor: pointer; }
+  .bar-pop:hover { transform: scaleY(1.04) scaleX(1.08); filter: brightness(1.1) drop-shadow(0 6px 10px oklch(0.3 0.05 180 / 30%)); }
+  .map-state { transform-box: fill-box; transform-origin: center; transition: transform .25s ease, filter .25s ease, fill-opacity .25s; cursor: pointer; }
+  .map-state:hover { transform: scale(1.06); filter: drop-shadow(0 6px 8px oklch(0.3 0.05 180 / 35%)); fill-opacity: 1; }
+  .map-dot { transform-box: fill-box; transform-origin: center; transition: transform .2s ease; cursor: pointer; }
+  .map-dot:hover, .map-dot-active { transform: scale(1.7); }
+  .map-tip { background: var(--foreground); color: var(--background); }
+}

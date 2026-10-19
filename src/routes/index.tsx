@@ -7,9 +7,9 @@ import { samples, snps, samplesWithSnp } from "@/lib/snp-data";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Level 2 – Selected SNP Distribution | LSDV Genomic Surveillance" },
+      { title: "Selected SNP Distribution | LSDV Genomic Surveillance" },
       { name: "description", content: "Interactive map, table and timeline of LSDV samples carrying a selected SNP across Maharashtra and Odisha." },
-      { property: "og:title", content: "Level 2 – Selected SNP Distribution | LSDV" },
+      { property: "og:title", content: "Selected SNP Distribution | LSDV" },
       { property: "og:description", content: "Explore where a selected Lumpy Skin Disease Virus SNP is circulating in India." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -22,7 +22,7 @@ const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-dig
 
 function Panel({ icon: Icon, title, children, className = "" }: { icon: typeof Dna; title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`panel ${className}`}>
+    <section className={`panel panel-hover ${className}`}>
       <h2 className="mb-4 flex items-center gap-2 font-display text-base font-semibold text-foreground">
         <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span>
         {title}
@@ -33,6 +33,7 @@ function Panel({ icon: Icon, title, children, className = "" }: { icon: typeof D
 }
 
 function Index() {
+  const [hover, setHover] = useState<string | null>(null);
   const [key, setKey] = useState(snps.find((s) => s.position === 12964)?.key ?? snps[0]?.key ?? "");
   const snp = snps.find((s) => s.key === key) ?? snps[0]!;
   const hits = useMemo(() => samplesWithSnp(snp), [snp]);
@@ -55,10 +56,9 @@ function Index() {
     <div className="min-h-screen bg-background">
       <header className="hero-band">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-5 px-6 py-7">
-          <div className="grid h-14 w-14 place-items-center rounded-full bg-primary-foreground/15 font-display text-2xl font-bold">2</div>
           <div className="flex-1">
             <p className="font-mono text-xs uppercase tracking-[0.2em] opacity-75">LSDV Genomic Surveillance</p>
-            <h1 className="font-display text-2xl font-bold md:text-3xl">Level 2 – Selected SNP Distribution</h1>
+            <h1 className="font-display text-2xl font-bold md:text-3xl">Selected SNP Distribution</h1>
             <p className="text-sm opacity-80">Where is this mutation circulating?</p>
           </div>
           <label className="flex min-w-[240px] flex-col gap-1">
@@ -79,7 +79,7 @@ function Index() {
 
         <div className="grid gap-6 lg:grid-cols-5">
           <Panel icon={MapPinned} title="Geographic distribution" className="lg:col-span-2">
-            <IndiaMap all={samples} carriers={carriers} />
+            <IndiaMap all={samples} carriers={carriers} hover={hover} onHover={setHover} />
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
               <Legend cls="bg-mh" label="Maharashtra (SNP present)" />
               <Legend cls="bg-od" label="Odisha (SNP present)" />
@@ -91,7 +91,7 @@ function Index() {
             <Panel icon={Dna} title="Selected SNP">
               <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
                 {[["Position", snp.position], ["REF", snp.ref], ["ALT", snp.alt], ["States", new Set(hits.map((h) => h.state)).size]].map(([k, v]) => (
-                  <div key={k} className="rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="text-lg font-semibold text-foreground">{v}</dd></div>
+                  <div key={k} className="tile-pop rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="text-lg font-semibold text-foreground">{v}</dd></div>
                 ))}
               </dl>
             </Panel>
@@ -104,7 +104,7 @@ function Index() {
                   </thead>
                   <tbody>
                     {hits.map((h) => (
-                      <tr key={h.id} className="border-b border-border/60 transition-colors hover:bg-muted/60">
+                      <tr key={h.id} onMouseEnter={() => setHover(h.id)} onMouseLeave={() => setHover(null)} className={`row-hover border-b border-border/60 ${hover === h.id ? "row-active" : ""}`}>
                         <td className="px-3 py-2 font-mono text-xs">{h.id}</td>
                         <td className="px-3 py-2"><span className={`inline-flex items-center gap-1.5`}><span className={`h-2 w-2 rounded-full ${h.state === "Maharashtra" ? "bg-mh" : "bg-od"}`} />{h.state}</span></td>
                         <td className="px-3 py-2">{h.district}</td>
@@ -125,7 +125,7 @@ function Index() {
             {timeline.map(([d, v]) => (
               <div key={d} className="flex flex-1 flex-col items-center justify-end gap-2 h-full">
                 <span className="font-mono text-xs font-semibold text-foreground">{v.MH + v.OD}</span>
-                <div className="flex w-full max-w-20 flex-col overflow-hidden rounded-t-md" style={{ height: `${((v.MH + v.OD) / maxT) * 80}%` }}>
+                <div className="bar-pop flex w-full max-w-20 flex-col overflow-hidden rounded-t-md" style={{ height: `${((v.MH + v.OD) / maxT) * 80}%` }}>
                   {v.OD > 0 && <div className="bg-od" style={{ flex: v.OD }} title={`Odisha: ${v.OD}`} />}
                   {v.MH > 0 && <div className="bg-mh" style={{ flex: v.MH }} title={`Maharashtra: ${v.MH}`} />}
                 </div>
@@ -146,7 +146,7 @@ function Index() {
 function Stat({ label, value, sub, tone }: { label: string; value: number; sub: string; tone: "primary" | "mh" | "od" }) {
   const bar = { primary: "bg-primary", mh: "bg-mh", od: "bg-od" }[tone];
   return (
-    <div className="panel relative overflow-hidden">
+    <div className="panel panel-hover stat-pop relative overflow-hidden">
       <span className={`absolute inset-y-0 left-0 w-1 ${bar}`} />
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-1 font-display text-4xl font-bold text-foreground">{value}</p>

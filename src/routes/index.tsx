@@ -34,9 +34,9 @@ function Panel({ icon: Icon, title, children, className = "" }: { icon: typeof D
 
 function Index() {
   const [hover, setHover] = useState<string | null>(null);
-  const [key, setKey] = useState(snps.find((s) => s.position === 12964)?.key ?? snps[0]?.key ?? "");
-  const snp = snps.find((s) => s.key === key) ?? snps[0]!;
-  const hits = useMemo(() => samplesWithSnp(snp), [snp]);
+  const [key, setKey] = useState("");
+  const snp = snps.find((s) => s.key === key) ?? null;
+  const hits = useMemo(() => (snp ? samplesWithSnp(snp) : []), [snp]);
   const carriers = useMemo(() => new Set(hits.map((h) => h.id)), [hits]);
   const mh = hits.filter((h) => h.state === "Maharashtra").length;
   const od = hits.filter((h) => h.state === "Odisha").length;
@@ -64,6 +64,7 @@ function Index() {
           <label className="flex min-w-[240px] flex-col gap-1">
             <span className="text-xs font-medium uppercase tracking-wider opacity-80">Select SNP</span>
             <select value={key} onChange={(e) => setKey(e.target.value)} className="snp-select">
+              <option value="" disabled>Choose a SNP…</option>
               {snps.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </select>
           </label>
@@ -79,7 +80,7 @@ function Index() {
 
         <div className="grid gap-6 lg:grid-cols-5">
           <Panel icon={MapPinned} title="Geographic distribution" className="lg:col-span-2">
-            <IndiaMap all={samples} carriers={carriers} hover={hover} onHover={setHover} />
+            <IndiaMap active={!!snp} all={samples} carriers={carriers} hover={hover} onHover={setHover} />
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
               <Legend cls="bg-mh" label="Maharashtra (SNP present)" />
               <Legend cls="bg-od" label="Odisha (SNP present)" />
@@ -90,13 +91,13 @@ function Index() {
           <div className="space-y-6 lg:col-span-3">
             <Panel icon={Dna} title="Selected SNP">
               <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
-                {[["Position", snp.position], ["REF", snp.ref], ["ALT", snp.alt], ["States", new Set(hits.map((h) => h.state)).size]].map(([k, v]) => (
+                {[["Position", snp?.position ?? "—"], ["REF", snp?.ref ?? "—"], ["ALT", snp?.alt ?? "—"], ["States", new Set(hits.map((h) => h.state)).size]].map(([k, v]) => (
                   <div key={k} className="tile-pop rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="text-lg font-semibold text-foreground">{v}</dd></div>
                 ))}
               </dl>
             </Panel>
 
-            <Panel icon={Table2} title={`Samples carrying ${snp.label}`}>
+            <Panel icon={Table2} title={snp ? `Samples carrying ${snp.label}` : "Samples carrying selected SNP"}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="border-b text-xs uppercase tracking-wider text-muted-foreground">
@@ -112,7 +113,7 @@ function Index() {
                         <td className="px-3 py-2"><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{h.status}</span></td>
                       </tr>
                     ))}
-                    {hits.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">No samples carry this SNP.</td></tr>}
+                    {hits.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{snp ? "No samples carry this SNP." : "Select a SNP above to see which samples carry it."}</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -137,7 +138,7 @@ function Index() {
           </div>
         </Panel>
 
-        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> District locations are approximate centroids. Reference genome: NC_003027.1 (LSDV Neethling).</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> District locations are approximate centroids. Reference genome: NC_003027.1</p>
       </main>
     </div>
   );

@@ -11,8 +11,8 @@ const nice = (n: string) => (n === "Orissa" ? "Odisha" : n === "Uttaranchal" ? "
 
 type Tip = { x: number; y: number; title: string; lines: string[] };
 
-export function IndiaMap({ all, carriers, hover, onHover }: {
-  all: Sample[]; carriers: Set<string>; hover: string | null; onHover: (id: string | null) => void;
+export function IndiaMap({ active, all, carriers, hover, onHover }: {
+  active: boolean; all: Sample[]; carriers: Set<string>; hover: string | null; onHover: (id: string | null) => void;
 }) {
   const [tip, setTip] = useState<Tip | null>(null);
   const [hoverState, setHoverState] = useState<string | null>(null);
@@ -29,18 +29,18 @@ export function IndiaMap({ all, carriers, hover, onHover }: {
           const n = nice((f.properties as { NAME_1: string }).NAME_1);
           const st = all.filter((s) => s.state === n);
           const c = st.filter((s) => carriers.has(s.id)).length;
-          const cls = n === "Maharashtra" ? "fill-mh/30 stroke-mh" : n === "Odisha" ? "fill-od/30 stroke-od" : "fill-muted stroke-border hover:fill-accent";
+          const cls = !active ? "fill-muted stroke-border hover:fill-accent" : n === "Maharashtra" ? "fill-mh/30 stroke-mh" : n === "Odisha" ? "fill-od/30 stroke-od" : "fill-muted stroke-border hover:fill-accent";
           return (
             <path key={n} d={path(f) ?? ""} className={`map-state ${cls} stroke-[0.7]`}
               onMouseMove={(e) => {
                 setHoverState(n);
                 const r = e.currentTarget.ownerSVGElement!.getBoundingClientRect();
                 setTip({ x: e.clientX - r.left, y: e.clientY - r.top, title: n,
-                  lines: st.length ? [`${st.length} samples sequenced`, `${c} carry this SNP`] : ["No samples"] });
+                  lines: st.length ? [`${st.length} samples sequenced`, active ? `${c} carry this SNP` : "Select a SNP to highlight"] : ["No samples"] });
               }} />
           );
         })}
-        {Object.entries(groups).map(([d, list]) => {
+        {active && Object.entries(groups).map(([d, list]) => {
           const c = districtCoords[d];
           if (!c) return null;
           const [x, y] = proj(c)!;

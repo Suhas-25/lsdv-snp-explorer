@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Dna, MapPinned, Table2, CalendarRange, Activity } from "lucide-react";
 import { IndiaMap } from "@/components/IndiaMap";
+import { Timeline } from "@/components/Timeline";
 import { samples, snps, samplesWithSnp } from "@/lib/snp-data";
 
 export const Route = createFileRoute("/")({
@@ -40,17 +41,9 @@ function Index() {
   const carriers = useMemo(() => new Set(hits.map((h) => h.id)), [hits]);
   const mh = hits.filter((h) => h.state === "Maharashtra").length;
   const od = hits.filter((h) => h.state === "Odisha").length;
-
-  const timeline = useMemo(() => {
-    const m = new Map<string, { MH: number; OD: number }>();
-    [...hits].sort((a, b) => a.date.localeCompare(b.date)).forEach((h) => {
-      const e = m.get(h.date) ?? { MH: 0, OD: 0 };
-      h.state === "Maharashtra" ? e.MH++ : e.OD++;
-      m.set(h.date, e);
-    });
-    return [...m.entries()];
-  }, [hits]);
-  const maxT = Math.max(1, ...timeline.map(([, v]) => v.MH + v.OD));
+  const [filter, setFilter] = useState<"all" | "Maharashtra" | "Odisha">("all");
+  const shown = filter === "all" ? hits : hits.filter((h) => h.state === filter);
+  const toggle = (f: "Maharashtra" | "Odisha") => setFilter((c) => (c === f ? "all" : f));
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,14 +66,14 @@ function Index() {
 
       <main className="mx-auto max-w-7xl space-y-6 px-6 py-8">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Stat label="Total samples with SNP" value={hits.length} sub={`of ${samples.length} sequenced`} tone="primary" />
-          <Stat label="Maharashtra" value={mh} sub="samples carrying SNP" tone="mh" />
-          <Stat label="Odisha" value={od} sub="samples carrying SNP" tone="od" />
+          <Stat label="Total samples with SNP" value={hits.length} sub={`of ${samples.length} sequenced · click to show all`} tone="primary" active={filter === "all"} onClick={() => setFilter("all")} />
+          <Stat label="Maharashtra" value={mh} sub="click to filter" tone="mh" active={filter === "Maharashtra"} onClick={() => toggle("Maharashtra")} />
+          <Stat label="Odisha" value={od} sub="click to filter" tone="od" active={filter === "Odisha"} onClick={() => toggle("Odisha")} />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-5">
           <Panel icon={MapPinned} title="Geographic distribution" className="lg:col-span-2">
-            <IndiaMap active={!!snp} all={samples} carriers={carriers} hover={hover} onHover={setHover} />
+            <IndiaMap active={!!snp} all={samples} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
               <Legend cls="bg-mh" label="Maharashtra (SNP present)" />
               <Legend cls="bg-od" label="Odisha (SNP present)" />
@@ -104,7 +97,7 @@ function Index() {
                     <tr>{["Sample ID", "State", "District", "Collection Date", "Status"].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr>
                   </thead>
                   <tbody>
-                    {hits.map((h) => (
+                    {shown.map((h) => (
                       <tr key={h.id} onMouseEnter={() => setHover(h.id)} onMouseLeave={() => setHover(null)} className={`row-hover border-b border-border/60 ${hover === h.id ? "row-active" : ""}`}>
                         <td className="px-3 py-2 font-mono text-xs">{h.id}</td>
                         <td className="px-3 py-2"><span className={`inline-flex items-center gap-1.5`}><span className={`h-2 w-2 rounded-full ${h.state === "Maharashtra" ? "bg-mh" : "bg-od"}`} />{h.state}</span></td>
@@ -122,20 +115,7 @@ function Index() {
         </div>
 
         <Panel icon={CalendarRange} title="Collection timeline">
-          <div className="flex h-56 items-end gap-6 border-b border-l border-border px-4 pb-0 pt-4">
-            {timeline.map(([d, v]) => (
-              <div key={d} className="flex flex-1 flex-col items-center justify-end gap-2 h-full">
-                <span className="font-mono text-xs font-semibold text-foreground">{v.MH + v.OD}</span>
-                <div className="bar-pop flex w-full max-w-20 flex-col overflow-hidden rounded-t-md" style={{ height: `${((v.MH + v.OD) / maxT) * 80}%` }}>
-                  {v.OD > 0 && <div className="bg-od" style={{ flex: v.OD }} title={`Odisha: ${v.OD}`} />}
-                  {v.MH > 0 && <div className="bg-mh" style={{ flex: v.MH }} title={`Maharashtra: ${v.MH}`} />}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-6 px-4 pt-2">
-            {timeline.map(([d]) => <div key={d} className="flex-1 text-center font-mono text-xs text-muted-foreground">{fmt(d)}</div>)}
-          </div>
+          <Timeline hits={shown} hover={hover} onHover={setHover} />
         </Panel>
 
         <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> District locations are approximate centroids. Reference genome: NC_003027.1</p>
@@ -144,15 +124,15 @@ function Index() {
   );
 }
 
-function Stat({ label, value, sub, tone }: { label: string; value: number; sub: string; tone: "primary" | "mh" | "od" }) {
+function Stat({ label, value, sub, tone, active, onClick }: { label: string; value: number; sub: string; tone: "primary" | "mh" | "od"; active: boolean; onClick: () => void }) {
   const bar = { primary: "bg-primary", mh: "bg-mh", od: "bg-od" }[tone];
   return (
-    <div className="panel panel-hover stat-pop relative overflow-hidden">
+    <button type="button" onClick={onClick} className={`panel panel-hover stat-pop relative overflow-hidden text-left ${active ? "stat-active" : ""}`}>
       <span className={`absolute inset-y-0 left-0 w-1 ${bar}`} />
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-1 font-display text-4xl font-bold text-foreground">{value}</p>
       <p className="text-xs text-muted-foreground">{sub}</p>
-    </div>
+    </button>
   );
 }
 

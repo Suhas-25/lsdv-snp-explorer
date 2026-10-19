@@ -1,10 +1,10 @@
-import { geoMercator, geoPath } from "d3-geo";
+import { geoIdentity, geoPath } from "d3-geo";
 import india from "@/data/india.json";
 import { districtCoords, type Sample } from "@/lib/snp-data";
 
 const W = 460, H = 500;
 const fc = india as unknown as GeoJSON.FeatureCollection;
-const proj = geoMercator().fitSize([W, H], fc);
+const proj = geoIdentity().reflectY(true).fitSize([W, H], fc);
 const path = geoPath(proj);
 const isMH = (n: string) => n === "Maharashtra";
 const isOD = (n: string) => n === "Orissa" || n === "Odisha";

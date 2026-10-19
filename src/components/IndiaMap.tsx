@@ -11,8 +11,8 @@ const nice = (n: string) => (n === "Orissa" ? "Odisha" : n === "Uttaranchal" ? "
 
 type Tip = { x: number; y: number; title: string; lines: string[] };
 
-export function IndiaMap({ active, all, carriers, hover, onHover }: {
-  active: boolean; all: Sample[]; carriers: Set<string>; hover: string | null; onHover: (id: string | null) => void;
+export function IndiaMap({ active, all, carriers, hover, onHover, focus, onStateClick }: {
+  active: boolean; all: Sample[]; carriers: Set<string>; hover: string | null; onHover: (id: string | null) => void; focus: string | null; onStateClick: (n: string) => void;
 }) {
   const [tip, setTip] = useState<Tip | null>(null);
   const [hoverState, setHoverState] = useState<string | null>(null);
@@ -31,7 +31,8 @@ export function IndiaMap({ active, all, carriers, hover, onHover }: {
           const c = st.filter((s) => carriers.has(s.id)).length;
           const cls = !active ? "fill-muted stroke-border hover:fill-accent" : n === "Maharashtra" ? "fill-mh/30 stroke-mh" : n === "Odisha" ? "fill-od/30 stroke-od" : "fill-muted stroke-border hover:fill-accent";
           return (
-            <path key={n} d={path(f) ?? ""} className={`map-state ${cls} stroke-[0.7]`}
+            <path key={n} d={path(f) ?? ""} className={`map-state ${cls} ${focus && active && focus !== n ? "opacity-40" : ""} stroke-[0.7]`}
+              onClick={() => onStateClick(n)}
               onMouseMove={(e) => {
                 setHoverState(n);
                 const r = e.currentTarget.ownerSVGElement!.getBoundingClientRect();
@@ -45,7 +46,7 @@ export function IndiaMap({ active, all, carriers, hover, onHover }: {
           if (!c) return null;
           const [x, y] = proj(c)!;
           return (
-            <g key={d} className="pointer-events-none">
+            <g key={d} className={`pointer-events-none transition-opacity ${focus && focus !== list[0]?.state ? "opacity-25" : ""}`}>
               <text x={x + 14} y={y - 12} className="fill-foreground text-[11px] font-semibold">{d}</text>
               {list.map((s, i) => {
                 const a = (i / list.length) * Math.PI * 2;

@@ -2,9 +2,10 @@ import metaRaw from "@/data/samples_metadata.csv?raw";
 import snpRaw from "@/data/snp_list.csv?raw";
 import statusRaw from "@/data/sample_snp_status.csv?raw";
 
-function parse(raw: string): Record<string, string>[] {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parse(raw: string): any[] {
   const lines = raw.trim().split(/\r?\n/);
-  const head = lines[0].split(",").map((h) => h.trim());
+  const head = (lines[0] ?? "").split(",").map((h) => h.trim());
   return lines.slice(1).map((l) => {
     const c = l.split(",");
     return Object.fromEntries(head.map((h, i) => [h, (c[i] ?? "").trim()]));

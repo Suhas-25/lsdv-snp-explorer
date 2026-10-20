@@ -33,7 +33,8 @@ export function Timeline({ hits, hover, onHover, selectedDate, onDateChange }: {
             <div className="pointer-events-none absolute inset-x-0 top-44 h-px bg-border" />
             {events.map(([date, group], index) => {
               const active = selectedDate === date;
-              const nearby = index > 0 && scale.position(date) - scale.position(events[index - 1][0]) < 12;
+              const previous = events[index - 1];
+              const nearby = previous !== undefined && scale.position(date) - scale.position(previous[0]) < 12;
               return <div key={date} className={`absolute top-4 h-40 w-7 -translate-x-1/2 ${selectedDate && !active ? "opacity-40" : ""}`} style={{ left: `${scale.position(date)}%` }}>
                 {active && <div className="pointer-events-none absolute -inset-x-2 inset-y-0 rounded-sm bg-accent/70" />}
                 <div className="absolute inset-x-0 bottom-3 flex flex-col-reverse items-center gap-1.5">

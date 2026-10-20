@@ -75,11 +75,19 @@ function Index() {
           <Stat label="Odisha" value={od} sub="click to filter" tone="od" active={filter === "Odisha"} onClick={() => toggle("Odisha")} />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-5">
-          <div className="min-w-0 space-y-6 lg:col-span-2">
+        <div className="min-w-0 space-y-6">
+            <Panel icon={Dna} title="Selected SNP">
+              <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
+                {[["Position", snp?.position ?? "—"], ["REF", snp?.ref ?? "—"], ["ALT", snp?.alt ?? "—"], ["States", new Set(hits.map((h) => h.state)).size]].map(([k, v]) => (
+                  <div key={k} className="tile-pop rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="text-lg font-semibold text-foreground">{v}</dd></div>
+                ))}
+              </dl>
+            </Panel>
           <Panel icon={MapPinned} title="Geographic distribution">
+            <div className="mx-auto w-full max-w-[460px]">
             <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
-            <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            </div>
+            <div className="mt-3 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
               <Legend cls="bg-mh" label="Maharashtra (SNP present)" />
               <Legend cls="bg-od" label="Odisha (SNP present)" />
               <Legend cls="bg-background border border-foreground/60" label="SNP absent" />
@@ -88,17 +96,6 @@ function Index() {
           <Panel icon={CalendarRange} title="Collection timeline">
             <Timeline hits={stateHits} hover={hover} onHover={setHover} selectedDate={selectedDate} onDateChange={selectDate} />
           </Panel>
-          </div>
-
-          <div className="min-w-0 space-y-6 lg:col-span-3">
-            <Panel icon={Dna} title="Selected SNP">
-              <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
-                {[["Position", snp?.position ?? "—"], ["REF", snp?.ref ?? "—"], ["ALT", snp?.alt ?? "—"], ["States", new Set(hits.map((h) => h.state)).size]].map(([k, v]) => (
-                  <div key={k} className="tile-pop rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="text-lg font-semibold text-foreground">{v}</dd></div>
-                ))}
-              </dl>
-            </Panel>
-
             <Panel icon={Table2} title={snp ? `Samples carrying ${snp.label}` : "Samples carrying selected SNP"}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -120,7 +117,6 @@ function Index() {
                 </table>
               </div>
             </Panel>
-          </div>
         </div>
 
         <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> District locations are approximate centroids. Reference genome: NC_003027.1</p>

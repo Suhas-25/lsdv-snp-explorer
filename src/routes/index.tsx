@@ -24,7 +24,7 @@ const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-dig
 
 function Panel({ icon: Icon, title, children, className = "" }: { icon: typeof Dna; title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`panel panel-hover ${className}`}>
+    <section className={`panel panel-hover min-w-0 ${className}`}>
       <h2 className="mb-4 flex items-center gap-2 font-display text-base font-semibold text-foreground">
         <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span>
         {title}
@@ -76,7 +76,7 @@ function Index() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-5">
-          <div className="space-y-6 lg:col-span-2">
+          <div className="min-w-0 space-y-6 lg:col-span-2">
           <Panel icon={MapPinned} title="Geographic distribution">
             <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
@@ -90,7 +90,7 @@ function Index() {
           </Panel>
           </div>
 
-          <div className="space-y-6 lg:col-span-3">
+          <div className="min-w-0 space-y-6 lg:col-span-3">
             <Panel icon={Dna} title="Selected SNP">
               <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
                 {[["Position", snp?.position ?? "—"], ["REF", snp?.ref ?? "—"], ["ALT", snp?.alt ?? "—"], ["States", new Set(hits.map((h) => h.state)).size]].map(([k, v]) => (

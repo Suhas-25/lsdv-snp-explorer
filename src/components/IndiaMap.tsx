@@ -32,7 +32,7 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, onState
           const n = nice((f.properties as { NAME_1: string }).NAME_1);
           const st = all.filter((s) => s.state === n);
           const c = st.filter((s) => carriers.has(s.id)).length;
-          const cls = !active ? "fill-muted hover:fill-accent" : n === "Maharashtra" ? "fill-mh/30" : n === "Odisha" ? "fill-od/30" : "fill-muted hover:fill-accent";
+          const cls = !active || c === 0 ? "fill-muted hover:fill-accent" : n === "Maharashtra" ? "fill-mh/30" : n === "Odisha" ? "fill-od/30" : "fill-muted hover:fill-accent";
           return (
             <path key={n} d={path(f) ?? ""} className={`map-state ${cls} ${focus && active && focus !== n ? "opacity-40" : ""} stroke-[0.9]`}
               onClick={() => onStateClick(n)}

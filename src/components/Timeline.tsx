@@ -17,7 +17,7 @@ export function Timeline({ hits, selectedDate, cursorTime, playing, complete, on
   const first = dates[0];
   const last = dates[dates.length - 1];
   const time = cursorTime ?? (first ? Date.parse(`${first}T00:00:00Z`) : 0);
-  return <div className="space-y-4">
+  return <div className="space-y-2">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2">
         <Button type="button" size="icon" disabled={!first} aria-label={playing ? "Pause timeline" : complete ? "Replay timeline" : "Play timeline"} title={playing ? "Pause" : "Play"} onClick={onPlayPause}>
@@ -33,19 +33,19 @@ export function Timeline({ hits, selectedDate, cursorTime, playing, complete, on
       </div>
     </div>
     {!scale || !first || !last ? <p className="py-6 text-center text-sm text-muted-foreground">{hits.length ? "No collection dates available." : "Select a SNP with carrier samples to play the timeline."}</p> : <>
-      <div className="overflow-x-auto pt-6 pb-2">
-        <div className="relative mx-8 h-44 min-w-[700px]" role="img" aria-label="Collection timeline with samples positioned by collection date">
-          {scale.months.map((date) => <div key={date} className="pointer-events-none absolute top-0 h-28 border-l border-dashed border-border" style={{ left: `${scale.position(date)}%` }}>
-            <span className="absolute top-32 left-0 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] text-muted-foreground">{monthLabel(date)}</span>
+      <div className="overflow-x-auto pt-3 pb-1">
+        <div className="relative mx-6 h-32 min-w-[680px]" role="img" aria-label="Collection timeline with samples positioned by collection date">
+          {scale.months.map((date) => <div key={date} className="pointer-events-none absolute top-0 h-24 border-l border-dashed border-border" style={{ left: `${scale.position(date)}%` }}>
+            <span className="absolute top-28 left-0 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] text-muted-foreground">{monthLabel(date)}</span>
           </div>)}
-          <div className="absolute inset-x-0 top-28 h-px bg-border" />
-          {events.map(([date, group]) => <div key={date} className={`absolute top-0 h-28 w-6 -translate-x-1/2 ${selectedDate && selectedDate !== date ? "opacity-35" : ""}`} style={{ left: `${scale.position(date)}%` }}>
-            <div className="absolute inset-x-0 bottom-2 flex flex-col-reverse items-center gap-1.5">
-              {group.map((sample) => <span key={sample.id} title={`${sample.id} · ${sample.district} · ${label(date)}`} className={`h-3 w-3 rounded-full border border-card ${sample.state === "Maharashtra" ? "bg-mh" : "bg-od"} ${selectedDate === date ? "ring-2 ring-ring/40" : ""}`} />)}
-              <span className="mb-1 font-mono text-[11px] font-semibold text-foreground">{group.length}</span>
+          <div className="absolute inset-x-0 top-24 h-px bg-border" />
+          {events.map(([date, group]) => <div key={date} className={`absolute top-0 h-24 w-6 -translate-x-1/2 ${selectedDate && selectedDate !== date ? "opacity-35" : ""}`} style={{ left: `${scale.position(date)}%` }}>
+            <div className="absolute inset-x-0 bottom-1.5 flex flex-col-reverse items-center gap-1">
+              {group.map((sample) => <span key={sample.id} title={`${sample.id} · ${sample.district} · ${label(date)}`} className={`h-2.5 w-2.5 rounded-full border border-card ${sample.state === "Maharashtra" ? "bg-mh" : "bg-od"} ${selectedDate === date ? "ring-2 ring-ring/40" : ""}`} />)}
+              <span className="mb-0.5 font-mono text-[10px] font-semibold text-foreground">{group.length}</span>
             </div>
           </div>)}
-          <div className="pointer-events-none absolute top-0 h-32 w-px bg-primary" style={{ left: `${scale.positionTime(time)}%` }}>
+          <div className="pointer-events-none absolute top-0 h-28 w-px bg-primary" style={{ left: `${scale.positionTime(time)}%` }}>
             <span className="absolute -top-3 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-primary" />
           </div>
         </div>
@@ -56,7 +56,7 @@ export function Timeline({ hits, selectedDate, cursorTime, playing, complete, on
           const nearest = dates.reduce((best, date) => Math.abs(Date.parse(`${date}T00:00:00Z`) - requested) < Math.abs(Date.parse(`${best}T00:00:00Z`) - requested) ? date : best, first);
           onSeek(nearest);
         }} />
-      <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-muted-foreground"><span>{label(first)}</span><span className="font-sans">Collection date</span><span>{label(last)}</span></div>
+      <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground"><span>{label(first)}</span><span className="font-sans">Collection date</span><span>{label(last)}</span></div>
     </>}
   </div>;
 }

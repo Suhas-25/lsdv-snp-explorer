@@ -23,8 +23,8 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
     nice((a.properties as { NAME_1: string }).NAME_1) === hoverState ? 1 : nice((b.properties as { NAME_1: string }).NAME_1) === hoverState ? -1 : 0);
 
   return (
-    <div className="relative" onMouseLeave={() => { setTip(null); setHoverState(null); }}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="India map of samples">
+    <div className="relative h-full" onMouseLeave={() => { setTip(null); setHoverState(null); }}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="block h-full w-full" role="img" aria-label="India map of samples">
         <g className="map-outline pointer-events-none">
           {fc.features.map((f, i) => <path key={i} d={path(f) ?? ""} />)}
         </g>

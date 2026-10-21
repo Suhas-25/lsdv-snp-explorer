@@ -22,11 +22,11 @@ export const Route = createFileRoute("/")({
 
 const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-function Panel({ icon: Icon, title, children, className = "" }: { icon: typeof Dna; title: string; children: React.ReactNode; className?: string }) {
+function Panel({ icon: Icon, title, children, className = "", dense = false }: { icon: typeof Dna; title: string; children: React.ReactNode; className?: string; dense?: boolean }) {
   return (
-    <section className={`panel panel-hover min-w-0 ${className}`}>
-      <h2 className="mb-4 flex items-center gap-2 font-display text-base font-semibold text-foreground">
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span>
+    <section className={`panel panel-hover min-w-0 ${dense ? "panel-tight" : ""} ${className}`}>
+      <h2 className={`flex items-center gap-2 font-display font-semibold text-foreground ${dense ? "mb-2 text-sm" : "mb-4 text-base"}`}>
+        <span className={`grid place-items-center rounded-md bg-primary/10 text-primary ${dense ? "h-6 w-6" : "h-7 w-7"}`}><Icon className={dense ? "h-3.5 w-3.5" : "h-4 w-4"} /></span>
         {title}
       </h2>
       {children}
@@ -75,7 +75,7 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       <header className="hero-band">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-5 px-6 py-7">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-5 px-6 py-5">
           <div className="flex-1">
             <p className="font-mono text-xs uppercase tracking-[0.2em] opacity-75">LSDV Genomic Surveillance</p>
             <h1 className="font-display text-2xl font-bold md:text-3xl">Selected SNP Distribution</h1>
@@ -91,14 +91,14 @@ function Index() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-6 px-6 py-8">
+      <main className="mx-auto max-w-7xl space-y-4 px-6 py-6">
         <div className="grid gap-4 sm:grid-cols-3">
           <Stat label="Total samples with SNP" value={hits.length} sub={`of ${samples.length} sequenced · click to show all`} tone="primary" active={filter === "all"} onClick={() => { resetTimeline(); setFilter("all"); }} />
           <Stat label="Maharashtra" value={mh} sub="click to filter" tone="mh" active={filter === "Maharashtra"} onClick={() => toggle("Maharashtra")} />
           <Stat label="Odisha" value={od} sub="click to filter" tone="od" active={filter === "Odisha"} onClick={() => toggle("Odisha")} />
         </div>
 
-        <div className="min-w-0 space-y-6">
+        <div className="min-w-0 space-y-4">
             <Panel icon={Dna} title="Selected SNP">
               <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
                 {[["Position", snp?.position ?? "—"], ["REF", snp?.ref ?? "—"], ["ALT", snp?.alt ?? "—"], ["States", new Set(hits.map((h) => h.state)).size]].map(([k, v]) => (
@@ -106,18 +106,22 @@ function Index() {
                 ))}
               </dl>
             </Panel>
-          <Panel icon={MapPinned} title="Geographic distribution">
-            <div className="mx-auto w-full max-w-[460px]">
+          <Panel icon={MapPinned} title="Geographic distribution" dense>
+            <div className="mx-auto h-[min(38vh,340px)] min-h-[200px] w-full">
             <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
             </div>
-            <div className="mt-3 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
+            <div className="mt-1 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
               <Legend cls="bg-mh" label="Maharashtra (SNP present)" />
               <Legend cls="bg-od" label="Odisha (SNP present)" />
               <Legend cls="bg-background border border-foreground/60" label="SNP absent" />
             </div>
-          </Panel>
-          <Panel icon={CalendarRange} title="Collection timeline">
-            <Timeline hits={stateHits} selectedDate={selectedDate} cursorTime={frame?.time ?? null} playing={playing} complete={frame?.complete ?? false} onPlayPause={playPause} onRestart={resetTimeline} onSeek={seek} />
+            <div className="mt-1.5 border-t border-border/70 pt-1.5">
+              <h3 className="mb-1 flex items-center gap-2 font-display text-sm font-semibold text-foreground">
+                <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary"><CalendarRange className="h-3.5 w-3.5" /></span>
+                Collection timeline
+              </h3>
+              <Timeline hits={stateHits} selectedDate={selectedDate} cursorTime={frame?.time ?? null} playing={playing} complete={frame?.complete ?? false} onPlayPause={playPause} onRestart={resetTimeline} onSeek={seek} />
+            </div>
           </Panel>
             <Panel icon={Table2} title={snp ? `Samples carrying ${snp.label}` : "Samples carrying selected SNP"}>
               <div className="overflow-x-auto">

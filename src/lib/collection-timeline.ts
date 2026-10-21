@@ -24,5 +24,27 @@ export function collectionTimeScale(dates: string[]) {
   for (let month = new Date(start); month.getTime() < end; month = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1))) {
     months.push(month.toISOString().slice(0, 10));
   }
-  return { months, position: (date: string) => (Date.parse(`${date}T00:00:00Z`) - start) / (end - start) * 100 };
+  const positionTime = (time: number) => (time - start) / (end - start) * 100;
+  return { months, positionTime, position: (date: string) => positionTime(Date.parse(`${date}T00:00:00Z`)) };
+}
+
+export const DATE_HOLD_MS = 1800;
+export const DATE_TRAVEL_MS = 1000;
+
+export function collectionPlayback(dates: string[], elapsed: number) {
+  if (!dates.length) return null;
+  const segment = DATE_HOLD_MS + DATE_TRAVEL_MS;
+  const index = Math.min(Math.floor(Math.max(0, elapsed) / segment), dates.length - 1);
+  const date = dates[index];
+  if (!date) return null;
+  const next = dates[index + 1];
+  const local = Math.max(0, elapsed) - index * segment;
+  const fraction = next ? Math.min(1, Math.max(0, (local - DATE_HOLD_MS) / DATE_TRAVEL_MS)) : 0;
+  const time = Date.parse(`${date}T00:00:00Z`);
+  return {
+    date,
+    time: next ? time + (Date.parse(`${next}T00:00:00Z`) - time) * fraction : time,
+    dwelling: local < DATE_HOLD_MS,
+    complete: elapsed >= (dates.length - 1) * segment + DATE_HOLD_MS,
+  };
 }

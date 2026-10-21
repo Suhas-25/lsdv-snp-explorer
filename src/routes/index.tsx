@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dna, MapPinned, Table2, CalendarRange, Activity } from "lucide-react";
 import { IndiaMap } from "@/components/IndiaMap";
 import { Timeline } from "@/components/Timeline";
-import { filterCollectionDate } from "@/lib/collection-timeline";
+import { collectionEvents, collectionPlayback, DATE_HOLD_MS, DATE_TRAVEL_MS, filterCollectionDate } from "@/lib/collection-timeline";
 import { samples, snps, samplesWithSnp } from "@/lib/snp-data";
 
 export const Route = createFileRoute("/")({
@@ -39,15 +39,38 @@ function Index() {
   const [key, setKey] = useState("");
   const snp = snps.find((s) => s.key === key) ?? null;
   const hits = useMemo(() => (snp ? samplesWithSnp(snp) : []), [snp]);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
   const mh = hits.filter((h) => h.state === "Maharashtra").length;
   const od = hits.filter((h) => h.state === "Odisha").length;
   const [filter, setFilter] = useState<"all" | "Maharashtra" | "Odisha">("all");
   const stateHits = filter === "all" ? hits : hits.filter((h) => h.state === filter);
+  const dates = collectionEvents(stateHits).map(([date]) => date);
+  const frame = elapsed === null ? null : collectionPlayback(dates, elapsed);
+  const selectedDate = frame?.date ?? null;
+  useEffect(() => {
+    if (!playing) return;
+    const timer = window.setInterval(() => setElapsed((current) => (current ?? 0) + 50), 50);
+    return () => window.clearInterval(timer);
+  }, [playing]);
+  useEffect(() => {
+    if (frame?.complete) setPlaying(false);
+  }, [frame?.complete]);
+  const resetTimeline = () => { setPlaying(false); setElapsed(null); setHover(null); };
+  const playPause = () => {
+    if (playing) { setPlaying(false); return; }
+    if (elapsed === null || frame?.complete) setElapsed(0);
+    setHover(null);
+    setPlaying(true);
+  };
   const shown = filterCollectionDate(stateHits, selectedDate);
   const carriers = new Set(filterCollectionDate(hits, selectedDate).map((h) => h.id));
-  const selectDate = (date: string | null) => { setSelectedDate(date); setHover(null); };
-  const toggle = (f: "Maharashtra" | "Odisha") => setFilter((c) => (c === f ? "all" : f));
+  const seek = (date: string) => {
+    const index = dates.indexOf(date);
+    if (index < 0) return;
+    setPlaying(false); setElapsed(index * (DATE_HOLD_MS + DATE_TRAVEL_MS)); setHover(null);
+  };
+  const toggle = (f: "Maharashtra" | "Odisha") => { resetTimeline(); setFilter((c) => (c === f ? "all" : f)); };
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,7 +83,7 @@ function Index() {
           </div>
           <label className="flex min-w-[240px] flex-col gap-1">
             <span className="text-xs font-medium uppercase tracking-wider opacity-80">Select SNP</span>
-            <select value={key} onChange={(e) => { setKey(e.target.value); setHover(null); }} className="snp-select">
+            <select value={key} onChange={(e) => { resetTimeline(); setKey(e.target.value); }} className="snp-select">
               <option value="" disabled>Choose a SNP…</option>
               {snps.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </select>
@@ -70,7 +93,7 @@ function Index() {
 
       <main className="mx-auto max-w-7xl space-y-6 px-6 py-8">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Stat label="Total samples with SNP" value={hits.length} sub={`of ${samples.length} sequenced · click to show all`} tone="primary" active={filter === "all"} onClick={() => setFilter("all")} />
+          <Stat label="Total samples with SNP" value={hits.length} sub={`of ${samples.length} sequenced · click to show all`} tone="primary" active={filter === "all"} onClick={() => { resetTimeline(); setFilter("all"); }} />
           <Stat label="Maharashtra" value={mh} sub="click to filter" tone="mh" active={filter === "Maharashtra"} onClick={() => toggle("Maharashtra")} />
           <Stat label="Odisha" value={od} sub="click to filter" tone="od" active={filter === "Odisha"} onClick={() => toggle("Odisha")} />
         </div>
@@ -85,7 +108,7 @@ function Index() {
             </Panel>
           <Panel icon={MapPinned} title="Geographic distribution">
             <div className="mx-auto w-full max-w-[460px]">
-            <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
+            <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
             </div>
             <div className="mt-3 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
               <Legend cls="bg-mh" label="Maharashtra (SNP present)" />
@@ -94,7 +117,7 @@ function Index() {
             </div>
           </Panel>
           <Panel icon={CalendarRange} title="Collection timeline">
-            <Timeline hits={stateHits} hover={hover} onHover={setHover} selectedDate={selectedDate} onDateChange={selectDate} />
+            <Timeline hits={stateHits} selectedDate={selectedDate} cursorTime={frame?.time ?? null} playing={playing} complete={frame?.complete ?? false} onPlayPause={playPause} onRestart={resetTimeline} onSeek={seek} />
           </Panel>
             <Panel icon={Table2} title={snp ? `Samples carrying ${snp.label}` : "Samples carrying selected SNP"}>
               <div className="overflow-x-auto">

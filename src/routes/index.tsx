@@ -107,7 +107,7 @@ function Index() {
               </dl>
             </Panel>
           <Panel icon={MapPinned} title="Geographic distribution" dense>
-            <div className="mx-auto h-[min(40vh,340px)] min-h-[200px] w-full">
+            <div className="mx-auto h-[min(38vh,340px)] min-h-[200px] w-full">
             <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
             </div>
             <div className="mt-1 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">

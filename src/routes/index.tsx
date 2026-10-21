@@ -107,7 +107,7 @@ function Index() {
               </dl>
             </Panel>
           <Panel icon={MapPinned} title="Geographic distribution" dense>
-            <div className="mx-auto h-[min(42vh,360px)] min-h-[200px] w-full">
+            <div className="mx-auto h-[min(40vh,340px)] min-h-[200px] w-full">
             <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
             </div>
             <div className="mt-1 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
@@ -115,7 +115,7 @@ function Index() {
               <Legend cls="bg-od" label="Odisha (SNP present)" />
               <Legend cls="bg-background border border-foreground/60" label="SNP absent" />
             </div>
-            <div className="mt-2 border-t border-border/70 pt-2">
+            <div className="mt-1.5 border-t border-border/70 pt-1.5">
               <h3 className="mb-1 flex items-center gap-2 font-display text-sm font-semibold text-foreground">
                 <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary"><CalendarRange className="h-3.5 w-3.5" /></span>
                 Collection timeline

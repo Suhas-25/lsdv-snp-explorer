@@ -25,11 +25,14 @@ export function collectionTimeScale(dates: string[]) {
     months.push(month.toISOString().slice(0, 10));
   }
   const positionTime = (time: number) => (time - start) / (end - start) * 100;
-  return { months, positionTime, position: (date: string) => positionTime(Date.parse(`${date}T00:00:00Z`)) };
+  return { start, end, months, positionTime, position: (date: string) => positionTime(Date.parse(`${date}T00:00:00Z`)) };
 }
 
-export const DATE_HOLD_MS = 1800;
-export const DATE_TRAVEL_MS = 1000;
+export const DATE_HOLD_MS = 3000;
+export const DATE_TRAVEL_MS = 4000;
+
+// Ease-in-out so the cursor accelerates away from a date and settles gently on the next one.
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 
 export function collectionPlayback(dates: string[], elapsed: number) {
   if (!dates.length) return null;
@@ -39,7 +42,7 @@ export function collectionPlayback(dates: string[], elapsed: number) {
   if (!date) return null;
   const next = dates[index + 1];
   const local = Math.max(0, elapsed) - index * segment;
-  const fraction = next ? Math.min(1, Math.max(0, (local - DATE_HOLD_MS) / DATE_TRAVEL_MS)) : 0;
+  const fraction = next ? easeInOut(Math.min(1, Math.max(0, (local - DATE_HOLD_MS) / DATE_TRAVEL_MS))) : 0;
   const time = Date.parse(`${date}T00:00:00Z`);
   return {
     date,

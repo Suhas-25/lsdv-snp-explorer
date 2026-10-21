@@ -4,7 +4,7 @@ import { Dna, MapPinned, Table2, CalendarRange, Activity } from "lucide-react";
 import { IndiaMap } from "@/components/IndiaMap";
 import { Timeline } from "@/components/Timeline";
 import { collectionEvents, collectionPlayback, DATE_HOLD_MS, DATE_TRAVEL_MS, filterCollectionDate } from "@/lib/collection-timeline";
-import { samples, snps, samplesWithSnp } from "@/lib/snp-data";
+import { districtTone, samples, snps, samplesWithSnp, stateDistricts } from "@/lib/snp-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,7 +36,7 @@ function Panel({ icon: Icon, title, children, className = "", dense = false }: {
 
 function Index() {
   const [hover, setHover] = useState<string | null>(null);
-  const [key, setKey] = useState("");
+  const [key, setKey] = useState(snps[0]?.key ?? "");
   const snp = snps.find((s) => s.key === key) ?? null;
   const hits = useMemo(() => (snp ? samplesWithSnp(snp) : []), [snp]);
   const [elapsed, setElapsed] = useState<number | null>(null);
@@ -48,10 +48,21 @@ function Index() {
   const dates = collectionEvents(stateHits).map(([date]) => date);
   const frame = elapsed === null ? null : collectionPlayback(dates, elapsed);
   const selectedDate = frame?.date ?? null;
+  // Camera follows playback: it settles on the current date's districts and starts gliding toward the next date's while the cursor travels.
+  const cameraDate = frame ? (frame.dwelling ? frame.date : dates[dates.indexOf(frame.date) + 1] ?? frame.date) : null;
+  const zoomTo = cameraDate ? [...new Set(filterCollectionDate(stateHits, cameraDate).map((h) => h.district))] : null;
   useEffect(() => {
     if (!playing) return;
-    const timer = window.setInterval(() => setElapsed((current) => (current ?? 0) + 50), 50);
-    return () => window.clearInterval(timer);
+    let frameId = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const delta = now - last;
+      last = now;
+      setElapsed((current) => (current ?? 0) + delta);
+      frameId = requestAnimationFrame(tick);
+    };
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
   }, [playing]);
   useEffect(() => {
     if (frame?.complete) setPlaying(false);
@@ -75,17 +86,16 @@ function Index() {
   return (
     <div className="min-h-screen bg-background">
       <header className="hero-band">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-5 px-6 py-5">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6 py-3">
           <div className="flex-1">
-            <p className="font-mono text-xs uppercase tracking-[0.2em] opacity-75">LSDV Genomic Surveillance</p>
-            <h1 className="font-display text-2xl font-bold md:text-3xl">Selected SNP Distribution</h1>
-            <p className="text-sm opacity-80">Where is this mutation circulating?</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] opacity-75">LSDV Genomic Surveillance · Level 2</p>
+            <h1 className="font-display text-xl font-bold md:text-2xl">Selected SNP Distribution</h1>
+            <p className="font-mono text-[11px] opacity-75">Reference NC_003027.1 · {samples.length} NCL-BAIF isolates (NCBI GenBank) · {new Set(samples.map((s) => s.state)).size} states</p>
           </div>
-          <label className="flex min-w-[240px] flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wider opacity-80">Select SNP</span>
+          <label className="flex min-w-[220px] flex-col gap-0.5">
+            <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Select SNP</span>
             <select value={key} onChange={(e) => { resetTimeline(); setKey(e.target.value); }} className="snp-select">
-              <option value="" disabled>Choose a SNP…</option>
-              {snps.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                            {snps.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </select>
           </label>
         </div>
@@ -107,12 +117,16 @@ function Index() {
               </dl>
             </Panel>
           <Panel icon={MapPinned} title="Geographic distribution" dense>
-            <div className="mx-auto h-[min(38vh,340px)] min-h-[200px] w-full">
-            <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
+            <div className="mx-auto h-[min(65vh,600px)] min-h-[340px] w-full">
+            <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} zoomTo={zoomTo} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
             </div>
             <div className="mt-1 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-              <Legend cls="bg-mh" label="Maharashtra (SNP present)" />
-              <Legend cls="bg-od" label="Odisha (SNP present)" />
+              {["Maharashtra", "Odisha"].map((st) => (
+                <span key={st} className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">{st}:</span>
+                  {(stateDistricts[st] ?? []).map((d) => <Legend key={d} color={districtTone(st, d)} label={d} />)}
+                </span>
+              ))}
               <Legend cls="bg-background border border-foreground/60" label="SNP absent" />
             </div>
             <div className="mt-1.5 border-t border-border/70 pt-1.5">
@@ -134,7 +148,7 @@ function Index() {
                       <tr key={h.id} onMouseEnter={() => setHover(h.id)} onMouseLeave={() => setHover(null)} className={`row-hover border-b border-border/60 ${hover === h.id ? "row-active" : ""}`}>
                         <td className="px-3 py-2 font-mono text-xs">{h.id}</td>
                         <td className="px-3 py-2"><span className={`inline-flex items-center gap-1.5`}><span className={`h-2 w-2 rounded-full ${h.state === "Maharashtra" ? "bg-mh" : "bg-od"}`} />{h.state}</span></td>
-                        <td className="px-3 py-2">{h.district}</td>
+                        <td className="px-3 py-2"><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: districtTone(h.state, h.district) }} />{h.district}</span></td>
                         <td className="px-3 py-2 font-mono text-xs">{fmt(h.date)}</td>
                         <td className="px-3 py-2"><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{h.status}</span></td>
                       </tr>
@@ -146,7 +160,7 @@ function Index() {
             </Panel>
         </div>
 
-        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> District locations are approximate centroids. Reference genome: NC_003027.1</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> Samples are plotted at district centroids. State and national boundaries: DataMeet (official Survey of India outline); district boundaries: GADM (geohacker/india). Reference genome: NC_003027.1</p>
       </main>
     </div>
   );
@@ -164,6 +178,6 @@ function Stat({ label, value, sub, tone, active, onClick }: { label: string; val
   );
 }
 
-function Legend({ cls, label }: { cls: string; label: string }) {
-  return <span className="flex items-center gap-1.5"><span className={`h-3 w-3 rounded-full ${cls}`} />{label}</span>;
+function Legend({ cls = "", color, label }: { cls?: string; color?: string; label: string }) {
+  return <span className="flex items-center gap-1.5"><span className={`h-3 w-3 rounded-full ${cls}`} style={color ? { background: color } : undefined} />{label}</span>;
 }

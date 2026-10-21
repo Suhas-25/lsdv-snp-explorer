@@ -43,3 +43,23 @@ export function samplesWithSnp(snp: Snp) {
 export const districtCoords: Record<string, [number, number]> = {
   Ahmednagar: [74.74, 19.09], Pune: [73.86, 18.52], Angul: [85.1, 20.84], Mayurbhanj: [86.73, 21.93],
 };
+
+// Each district gets its own shade of its state's colour (darker → lighter, alphabetical),
+// so districts stay distinguishable while still reading as the same state.
+const stateColor: Record<string, string> = { Maharashtra: "var(--mh)", Odisha: "var(--od)" };
+export const stateDistricts: Record<string, string[]> = {};
+for (const s of samples) {
+  const list = (stateDistricts[s.state] ??= []);
+  if (!list.includes(s.district)) list.push(s.district);
+}
+Object.values(stateDistricts).forEach((list) => list.sort());
+
+export function districtTone(state: string, district: string) {
+  const base = stateColor[state] ?? "var(--primary)";
+  const list = stateDistricts[state] ?? [];
+  if (list.length < 2) return base;
+  const t = list.indexOf(district) / (list.length - 1); // 0 = darkest, 1 = lightest
+  return t < 0.5
+    ? `color-mix(in oklch, ${base}, black ${Math.round((0.5 - t) * 50)}%)`
+    : `color-mix(in oklch, ${base}, white ${Math.round((t - 0.5) * 60)}%)`;
+}

@@ -11,8 +11,8 @@ const nice = (n: string) => (n === "Orissa" ? "Odisha" : n === "Uttaranchal" ? "
 
 type Tip = { x: number; y: number; title: string; lines: string[] };
 
-export function IndiaMap({ active, all, carriers, hover, onHover, focus, onStateClick }: {
-  active: boolean; all: Sample[]; carriers: Set<string>; hover: string | null; onHover: (id: string | null) => void; focus: string | null; onStateClick: (n: string) => void;
+export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, onStateClick }: {
+  active: boolean; all: Sample[]; carriers: Set<string>; hover: string | null; onHover: (id: string | null) => void; focus: string | null; blink: boolean; onStateClick: (n: string) => void;
 }) {
   const [tip, setTip] = useState<Tip | null>(null);
   const [hoverState, setHoverState] = useState<string | null>(null);
@@ -38,7 +38,9 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, onState
               onClick={() => onStateClick(n)}
               onMouseMove={(e) => {
                 setHoverState(n);
-                const r = e.currentTarget.ownerSVGElement!.getBoundingClientRect();
+                const svg = e.currentTarget.ownerSVGElement;
+                if (!svg) return;
+                const r = svg.getBoundingClientRect();
                 setTip({ x: e.clientX - r.left, y: e.clientY - r.top, title: n,
                   lines: st.length ? [`${st.length} samples sequenced`, active ? `${c} carry this SNP` : "Select a SNP to highlight"] : ["No samples"] });
               }} />
@@ -47,9 +49,13 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, onState
         {active && Object.entries(groups).map(([d, list]) => {
           const c = districtCoords[d];
           if (!c) return null;
-          const [x, y] = proj(c)!;
+          const point = proj(c);
+          if (!point) return null;
+          const [x, y] = point;
+          const blinking = blink && list.some((sample) => carriers.has(sample.id)) && (!focus || focus === list[0]?.state);
           return (
             <g key={d} className={`pointer-events-none transition-opacity ${focus && focus !== list[0]?.state ? "opacity-25" : ""}`}>
+              {blinking && <circle data-blinking-district={d} cx={x} cy={y} r={22} className={`district-pulse ${list[0]?.state === "Maharashtra" ? "stroke-mh" : "stroke-od"} fill-none stroke-2`} />}
               <text x={x + 14} y={y - 12} className="fill-foreground text-[11px] font-semibold">{d}</text>
               {list.map((s, i) => {
                 const a = (i / list.length) * Math.PI * 2;
@@ -61,10 +67,12 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, onState
                   <g key={s.id} className="pointer-events-auto">
                     {hover === s.id && <circle cx={cx} cy={cy} r={8} className={`${col} animate-ping opacity-60`} />}
                     <circle cx={cx} cy={cy} r={has ? 6 : 4.5}
-                      className={`map-dot ${hover === s.id ? "map-dot-active" : ""} ${has ? col : "fill-background"} stroke-foreground/70 stroke-1`}
+                      className={`map-dot ${blinking && has ? "district-blink" : ""} ${hover === s.id ? "map-dot-active" : ""} ${has ? col : "fill-background"} stroke-foreground/70 stroke-1`}
                       onMouseEnter={(e) => {
                         onHover(s.id);
-                        const rr = e.currentTarget.ownerSVGElement!.getBoundingClientRect();
+                        const svg = e.currentTarget.ownerSVGElement;
+                        if (!svg) return;
+                        const rr = svg.getBoundingClientRect();
                         setTip({ x: e.clientX - rr.left, y: e.clientY - rr.top, title: s.id,
                           lines: [`${s.district}, ${s.state}`, s.date, has ? "SNP present" : "SNP absent"] });
                       }}

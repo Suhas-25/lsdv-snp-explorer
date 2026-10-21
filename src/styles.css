@@ -187,3 +187,13 @@
   .tl-dot { width: .8rem; height: .8rem; border-radius: 999px; border: 2px solid var(--card); box-shadow: 0 1px 3px oklch(0.3 0.06 265 / 30%); transition: transform .2s ease; cursor: pointer; }
   .tl-dot:hover, .tl-dot-active { transform: scale(1.6); }
 }
+
+.timeline-slider { accent-color: var(--primary); cursor: pointer; }
+.district-pulse { transform-box: fill-box; transform-origin: center; animation: district-pulse .9s ease-out infinite; }
+.district-blink { animation: district-blink .9s ease-in-out infinite; }
+@keyframes district-pulse { from { transform: scale(.6); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
+@keyframes district-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) {
+  .district-pulse, .district-blink { animation: none; }
+  .district-pulse { opacity: .7; }
+}

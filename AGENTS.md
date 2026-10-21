@@ -9,4 +9,4 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Keep SNP, state, and collection-date selection in the dashboard route, with date grouping/filtering in a browser-safe helper shared by timeline and tests; this keeps the map and table synchronized without replacing the selected SNP.
+- Keep SNP, state, and playback selection in the dashboard route, with date grouping, filtering, and playback frames in a browser-safe helper shared by timeline and tests; this keeps the animated cursor, map, and table synchronized without replacing the selected SNP.

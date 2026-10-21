@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectionEvents, collectionTimeScale, filterCollectionDate } from "./collection-timeline";
+import { collectionEvents, collectionPlayback, collectionTimeScale, DATE_HOLD_MS, DATE_TRAVEL_MS, filterCollectionDate } from "./collection-timeline";
 import { samplesWithSnp, snps } from "./snp-data";
 
 const snp = snps.find((s) => s.position === 12964);
@@ -7,6 +7,31 @@ if (!snp) throw new Error("Expected supplied SNP 12964 G→A");
 const hits = samplesWithSnp(snp);
 
 describe("Linked collection-date filtering", () => {
+  it("plays the supplied dates from earliest to latest and stops at the end", () => {
+    const dates = collectionEvents(hits).map(([date]) => date);
+    const segment = DATE_HOLD_MS + DATE_TRAVEL_MS;
+    expect(collectionPlayback(dates, 0)?.date).toBe("2022-12-21");
+    expect(collectionPlayback(dates, segment)?.date).toBe("2023-08-12");
+    expect(collectionPlayback(dates, segment * 2)?.date).toBe("2023-08-22");
+    expect(collectionPlayback(dates, segment * 2 + DATE_HOLD_MS)?.complete).toBe(true);
+    expect(collectionPlayback(dates, 999999)?.date).toBe("2023-08-22");
+  });
+  it("moves the cursor continuously between the real collection dates", () => {
+    const frame = collectionPlayback(["2022-12-21", "2023-08-12"], DATE_HOLD_MS + DATE_TRAVEL_MS / 2);
+    expect(frame?.time).toBe((Date.parse("2022-12-21T00:00:00Z") + Date.parse("2023-08-12T00:00:00Z")) / 2);
+    expect(frame?.dwelling).toBe(false);
+  });
+  it("highlights Pune in December and Mayurbhanj in August using only the selected SNP carriers", () => {
+    const dates = collectionEvents(hits).map(([date]) => date);
+    const first = collectionPlayback(dates, 0);
+    const last = collectionPlayback(dates, 2 * (DATE_HOLD_MS + DATE_TRAVEL_MS));
+    expect(filterCollectionDate(hits, first?.date ?? null).map((sample) => sample.district)).toEqual(["Pune", "Pune"]);
+    expect(new Set(filterCollectionDate(hits, last?.date ?? null).map((sample) => sample.district))).toEqual(new Set(["Angul", "Mayurbhanj"]));
+  });
+  it("handles no dates and a single collection date", () => {
+    expect(collectionPlayback([], 0)).toBeNull();
+    expect(collectionPlayback(["2022-12-21"], DATE_HOLD_MS)).toMatchObject({ date: "2022-12-21", complete: true });
+  });
   it("positions samples by elapsed days rather than equally spaced date categories", () => {
     const scale = collectionTimeScale(["2022-12-21", "2023-08-12", "2023-08-22"]);
     const longGap = scale.position("2023-08-12") - scale.position("2022-12-21");

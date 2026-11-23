@@ -1,48 +1,54 @@
-import metaRaw from "@/data/samples_metadata.csv?raw";
-import snpRaw from "@/data/snp_list.csv?raw";
-import statusRaw from "@/data/sample_snp_status.csv?raw";
+// Data comes from lvl_2_explore/scripts: build_matrix.py → build_explorer_json.py → explorer_data.json.
+// Each mutation lists its carriers (GenBank IDs), which is the samples × mutations matrix in compact form.
+import data from "@/data/explorer_data.json";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parse(raw: string): any[] {
-  const lines = raw.trim().split(/\r?\n/);
-  const head = (lines[0] ?? "").split(",").map((h) => h.trim());
-  return lines.slice(1).map((l) => {
-    const c = l.split(",");
-    return Object.fromEntries(head.map((h, i) => [h, (c[i] ?? "").trim()]));
-  });
-}
+type RawSample = (typeof data.samples)[number];
+type RawMutation = (typeof data.mutations)[number];
 
 export type Sample = {
-  id: string; genbank: string; state: string; district: string;
-  date: string; type: string; location: string;
+  id: string;            // GenBank ID (without version), the key used everywhere
+  sampleId: string;      // lab name, e.g. NCL-BAIF-LSDV063
+  state: string;
+  stateLgd: number | null;
+  district: string;      // name as in the sample sheet (e.g. "Angul")
+  districtLgd: string;   // LGD code as text; joins samples to the district shapes on the map
+  location: string;
+  type: string;
+  host: string;
+  date: string;          // YYYY-MM-DD, "" when unknown
+  totalMutations: number;
+  privateMutations: number;
+  effects: Record<string, number>;
 };
-export type Snp = { key: string; position: number; ref: string; alt: string; label: string };
 
-export const samples: Sample[] = parse(metaRaw).map((r) => ({
-  id: r.Sample_ID, genbank: r.GenBank_ID, state: r.State, district: r.District,
-  date: r.Collection_Date, type: r.Sample_Type, location: r.Location,
+export type Snp = {
+  key: string; position: number; ref: string; alt: string; label: string;
+  type: string; effectGroup: string; effect: string; impact: string; gene: string; protein: string;
+  count: number; freq: number; cls: string; carriers: string[];
+};
+
+export const reference = data.meta.reference;
+export const effectGroups: string[] = data.meta.effect_groups;
+
+export const samples: Sample[] = data.samples.map((s: RawSample) => ({
+  id: s.id, sampleId: s.sample_id, state: s.state, stateLgd: s.state_lgd,
+  district: s.district_label || s.district, districtLgd: String(s.district_lgd ?? ""),
+  location: s.location, type: s.sample_type, host: s.host, date: s.date ?? "",
+  totalMutations: s.total_mutations, privateMutations: s.private_mutations,
+  effects: s.effects as Record<string, number>,
 }));
 
-export const snps: Snp[] = parse(snpRaw).map((r) => ({
-  key: `${r.Position}-${r.REF}-${r.ALT}`, position: Number(r.Position), ref: r.REF, alt: r.ALT,
-  label: `${r.Position} ${r.REF}→${r.ALT}`,
+export const snps: Snp[] = data.mutations.map((m: RawMutation) => ({
+  key: m.key, position: m.pos, ref: m.ref, alt: m.alt,
+  label: `${m.pos} ${m.ref}→${m.alt}${m.gene ? ` · ${m.gene}` : ""}`,
+  type: m.type, effectGroup: m.effect_group, effect: m.effect, impact: m.impact,
+  gene: m.gene, protein: m.protein, count: m.count, freq: m.freq, cls: m.class, carriers: m.carriers,
 }));
-
-const status = parse(statusRaw);
 
 export function samplesWithSnp(snp: Snp) {
-  const hits = new Map<string, string>();
-  for (const s of status) {
-    if (`${s.Position}-${s.REF}-${s.ALT}` === snp.key && s.Status.toLowerCase() === "present")
-      hits.set(s.Sample_ID, s.Status);
-  }
-  return samples.filter((s) => hits.has(s.id)).map((s) => ({ ...s, status: hits.get(s.id)! }));
+  const carriers = new Set(snp.carriers);
+  return samples.filter((s) => carriers.has(s.id)).map((s) => ({ ...s, status: "Present" }));
 }
-
-// Approximate district centroids [lon, lat]
-export const districtCoords: Record<string, [number, number]> = {
-  Ahmednagar: [74.74, 19.09], Pune: [73.86, 18.52], Angul: [85.1, 20.84], Mayurbhanj: [86.73, 21.93],
-};
 
 // Each district gets its own shade of its state's colour (darker → lighter, alphabetical),
 // so districts stay distinguishable while still reading as the same state.

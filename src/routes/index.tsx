@@ -4,7 +4,7 @@ import { Dna, MapPinned, Table2, CalendarRange, Activity } from "lucide-react";
 import { IndiaMap } from "@/components/IndiaMap";
 import { Timeline } from "@/components/Timeline";
 import { collectionEvents, collectionPlayback, DATE_HOLD_MS, DATE_TRAVEL_MS, filterCollectionDate } from "@/lib/collection-timeline";
-import { districtTone, samples, snps, samplesWithSnp, stateDistricts } from "@/lib/snp-data";
+import { districtTone, reference, samples, snps, samplesWithSnp, stateDistricts } from "@/lib/snp-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,7 +50,7 @@ function Index() {
   const selectedDate = frame?.date ?? null;
   // Camera follows playback: it settles on the current date's districts and starts gliding toward the next date's while the cursor travels.
   const cameraDate = frame ? (frame.dwelling ? frame.date : dates[dates.indexOf(frame.date) + 1] ?? frame.date) : null;
-  const zoomTo = cameraDate ? [...new Set(filterCollectionDate(stateHits, cameraDate).map((h) => h.district))] : null;
+  const zoomTo = cameraDate ? [...new Set(filterCollectionDate(stateHits, cameraDate).map((h) => h.districtLgd))] : null;
   useEffect(() => {
     if (!playing) return;
     let frameId = 0;
@@ -90,7 +90,7 @@ function Index() {
           <div className="flex-1">
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] opacity-75">LSDV Genomic Surveillance · Level 2</p>
             <h1 className="font-display text-xl font-bold md:text-2xl">Selected SNP Distribution</h1>
-            <p className="font-mono text-[11px] opacity-75">Reference NC_003027.1 · {samples.length} NCL-BAIF isolates (NCBI GenBank) · {new Set(samples.map((s) => s.state)).size} states</p>
+            <p className="font-mono text-[11px] opacity-75">Reference {reference} · {samples.length} NCL-BAIF isolates (Dharini snippy-fasta) · {snps.length} mutations · {new Set(samples.map((s) => s.state)).size} states</p>
           </div>
           <label className="flex min-w-[220px] flex-col gap-0.5">
             <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Select SNP</span>
@@ -146,10 +146,10 @@ function Index() {
                   <tbody>
                     {shown.map((h) => (
                       <tr key={h.id} onMouseEnter={() => setHover(h.id)} onMouseLeave={() => setHover(null)} className={`row-hover border-b border-border/60 ${hover === h.id ? "row-active" : ""}`}>
-                        <td className="px-3 py-2 font-mono text-xs">{h.id}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{h.sampleId}<span className="block text-[10px] text-muted-foreground">{h.id}</span></td>
                         <td className="px-3 py-2"><span className={`inline-flex items-center gap-1.5`}><span className={`h-2 w-2 rounded-full ${h.state === "Maharashtra" ? "bg-mh" : "bg-od"}`} />{h.state}</span></td>
                         <td className="px-3 py-2"><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: districtTone(h.state, h.district) }} />{h.district}</span></td>
-                        <td className="px-3 py-2 font-mono text-xs">{fmt(h.date)}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{h.date ? fmt(h.date) : "—"}</td>
                         <td className="px-3 py-2"><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{h.status}</span></td>
                       </tr>
                     ))}
@@ -160,7 +160,7 @@ function Index() {
             </Panel>
         </div>
 
-        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> Samples are plotted at district centroids. State and national boundaries: DataMeet (official Survey of India outline); district boundaries: GADM (geohacker/india). Reference genome: NC_003027.1</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> Samples are plotted at district centroids, matched by LGD code. State and national boundaries: DataMeet (official Survey of India outline); district boundaries: Dharini (LGD). Reference genome: {reference}</p>
       </main>
     </div>
   );

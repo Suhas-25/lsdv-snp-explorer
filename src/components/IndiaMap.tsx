@@ -2,29 +2,28 @@ import { geoIdentity, geoPath } from "d3-geo";
 import { useState } from "react";
 import india from "@/data/india.json";
 import districtsGeo from "@/data/districts.json";
-import { districtCoords, districtTone, type Sample } from "@/lib/snp-data";
+import { districtTone, type Sample } from "@/lib/snp-data";
 
 const W = 460, H = 500;
 const fc = india as unknown as GeoJSON.FeatureCollection;
-const dfc = districtsGeo as unknown as GeoJSON.FeatureCollection<GeoJSON.Geometry, { state: string; district: string }>;
+// District shapes from Dharini (LGD codes), built by lvl_2_explore/scripts/build_map_districts.py
+const dfc = districtsGeo as unknown as GeoJSON.FeatureCollection<GeoJSON.Geometry, { state: string; state_lgd: number; district: string; district_lgd: number }>;
 const proj = geoIdentity().reflectY(true).fitSize([W, H], fc);
 const path = geoPath(proj);
 const nice = (n: string) => (n === "Orissa" ? "Odisha" : n === "Uttaranchal" ? "Uttarakhand" : n);
-const districtFeature = new Map(dfc.features.map((f) => [f.properties.district, f]));
+const districtFeature = new Map(dfc.features.map((f) => [String(f.properties.district_lgd), f]));
 const statesWithDistricts = new Set(dfc.features.map((f) => f.properties.state));
 
-// Where a district's sample cluster sits: the boundary's centroid, falling back to hand-entered coordinates.
-function anchor(district: string): [number, number] | null {
-  const f = districtFeature.get(district);
-  if (f) return path.centroid(f) as [number, number];
-  const c = districtCoords[district];
-  return c ? (proj(c) as [number, number] | null) : null;
+// Where a district's sample cluster sits: the centroid of its boundary, looked up by district LGD code.
+function anchor(districtLgd: string): [number, number] | null {
+  const f = districtFeature.get(districtLgd);
+  return f ? (path.centroid(f) as [number, number]) : null;
 }
 
 // Gentle playback zoom: never far enough to lose the outline of India, and clamped so no blank edge shows.
 const ZOOM = 1.25;
-function cameraFor(districts: string[] | null) {
-  const boxes = (districts ?? []).flatMap((d) => {
+function cameraFor(districtLgds: string[] | null) {
+  const boxes = (districtLgds ?? []).flatMap((d) => {
     const f = districtFeature.get(d);
     if (f) return [path.bounds(f)];
     const p = anchor(d);
@@ -43,7 +42,7 @@ const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 &
 const CLUSTER_R = 16;
 
 // Greedy label placement: try positions around each cluster, keep the first that avoids every cluster and earlier label.
-function placeLabels(points: { name: string; x: number; y: number }[]) {
+function placeLabels<P extends { name: string; x: number; y: number }>(points: P[]) {
   const clusters: Box[] = points.map((p) => ({ x0: p.x - CLUSTER_R, y0: p.y - CLUSTER_R, x1: p.x + CLUSTER_R, y1: p.y + CLUSTER_R }));
   const placed: Box[] = [];
   const dirs: [number, number][] = [[1, -0.6], [1, 0.6], [-1, -0.6], [-1, 0.6], [0, -1], [0, 1], [1.6, -1.4], [-1.6, -1.4], [1.6, 1.4], [-1.6, 1.4]];
@@ -72,15 +71,15 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
   const [tip, setTip] = useState<Tip | null>(null);
   const [hoverState, setHoverState] = useState<string | null>(null);
   const groups: Record<string, Sample[]> = {};
-  all.forEach((s) => (groups[s.district] ??= []).push(s));
+  all.forEach((s) => (groups[s.districtLgd] ??= []).push(s));  // keyed by district LGD code
   const cam = cameraFor(zoomTo);
 
   const ordered = [...fc.features].sort((a, b) =>
     nice((a.properties as { NAME_1: string }).NAME_1) === hoverState ? 1 : nice((b.properties as { NAME_1: string }).NAME_1) === hoverState ? -1 : 0);
 
-  const points = Object.keys(groups).flatMap((d) => {
-    const p = anchor(d);
-    return p ? [{ name: d, x: p[0], y: p[1] }] : [];
+  const points = Object.entries(groups).flatMap(([lgd, list]) => {
+    const p = anchor(lgd);
+    return p ? [{ lgd, name: list[0]?.district ?? lgd, x: p[0], y: p[1] }] : [];
   });
   const labels = placeLabels(points);
 
@@ -111,21 +110,22 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
           })}
           <g className="pointer-events-none">
             {dfc.features.map((f) => {
-              const { state, district } = f.properties;
-              const sampled = groups[district]?.some((s) => carriers.has(s.id)) && active;
+              const { state, district_lgd } = f.properties;
+              const list = groups[String(district_lgd)];
+              const sampled = list?.some((s) => carriers.has(s.id)) && active;
               return (
-                <path key={`${state}-${district}`} d={path(f) ?? ""} className={`map-district ${sampled ? "map-district-sampled" : ""} ${focus && active && focus !== state ? "opacity-40" : ""}`}
-                  style={sampled ? { fill: districtTone(state, district) } : undefined} />
+                <path key={district_lgd} d={path(f) ?? ""} className={`map-district ${sampled ? "map-district-sampled" : ""} ${focus && active && focus !== state ? "opacity-40" : ""}`}
+                  style={sampled && list?.[0] ? { fill: districtTone(state, list[0].district) } : undefined} />
               );
             })}
           </g>
-          {active && labels.map(({ name, x, y, lx, ly, anchor: ta }) => {
-            const list = groups[name] ?? [];
+          {active && labels.map(({ lgd, name, x, y, lx, ly, anchor: ta }) => {
+            const list = groups[lgd] ?? [];
             const state = list[0]?.state ?? "";
             const blinking = blink && list.some((sample) => carriers.has(sample.id)) && (!focus || focus === state);
             const dx = lx - x, dy = ly - y, len = Math.hypot(dx, dy) || 1;
             return (
-              <g key={name} className={`pointer-events-none transition-opacity ${focus && focus !== state ? "opacity-25" : ""}`}>
+              <g key={lgd} className={`pointer-events-none transition-opacity ${focus && focus !== state ? "opacity-25" : ""}`}>
                 {blinking && <circle data-blinking-district={name} cx={x} cy={y} r={22} className={`district-pulse ${state === "Maharashtra" ? "stroke-mh" : "stroke-od"} fill-none stroke-2`} />}
                 <line x1={x + (dx / len) * (CLUSTER_R - 4)} y1={y + (dy / len) * (CLUSTER_R - 4)} x2={lx - (dx / len) * 3} y2={ly - (dy / len) * 3} className="map-leader" />
                 <text x={lx} y={ly} dy="0.35em" textAnchor={ta} className="map-label">{name}</text>
@@ -147,8 +147,8 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
                           const svg = e.currentTarget.ownerSVGElement;
                           if (!svg) return;
                           const rr = svg.getBoundingClientRect();
-                          setTip({ x: e.clientX - rr.left, y: e.clientY - rr.top, title: s.id,
-                            lines: [`${s.district}, ${s.state}`, s.date, has ? "SNP present" : "SNP absent"] });
+                          setTip({ x: e.clientX - rr.left, y: e.clientY - rr.top, title: s.sampleId,
+                            lines: [`${s.id} · ${s.location}`, `${s.district}, ${s.state}`, s.date || "Date unknown", has ? "SNP present" : "SNP absent"] });
                         }}
                         onMouseLeave={() => onHover(null)} />
                     </g>

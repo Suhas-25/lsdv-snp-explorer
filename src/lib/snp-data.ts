@@ -45,6 +45,25 @@ export const snps: Snp[] = data.mutations.map((m: RawMutation) => ({
   gene: m.gene, protein: m.protein, count: m.count, freq: m.freq, cls: m.class, carriers: m.carriers,
 }));
 
+// Value of the mutation dropdown meaning "all mutations of the chosen effect".
+export const ALL_MUTATIONS = "__all__";
+
+// Core mutations are carried by every sample (lineage differences from the reference), so they
+// are hidden by default: they would light up every district for every choice.
+export function mutationsFor(group: string, includeCore: boolean) {
+  return snps
+    .filter((s) => s.effectGroup === group && (includeCore || s.cls !== "core"))
+    .sort((a, b) => b.count - a.count || a.position - b.position);
+}
+
+// For "All <effect>": how many of those mutations each sample carries.
+export function effectCounts(group: string, includeCore: boolean) {
+  const counts = new Map<string, number>();
+  for (const m of mutationsFor(group, includeCore))
+    for (const id of m.carriers) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return counts;
+}
+
 export function samplesWithSnp(snp: Snp) {
   const carriers = new Set(snp.carriers);
   return samples.filter((s) => carriers.has(s.id)).map((s) => ({ ...s, status: "Present" }));

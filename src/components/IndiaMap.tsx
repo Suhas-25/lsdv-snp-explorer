@@ -42,12 +42,12 @@ const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 &
 const CLUSTER_R = 16;
 
 // Greedy label placement: try positions around each cluster, keep the first that avoids every cluster and earlier label.
-function placeLabels<P extends { name: string; x: number; y: number }>(points: P[]) {
+function placeLabels<P extends { name: string; suffix: string; x: number; y: number }>(points: P[]) {
   const clusters: Box[] = points.map((p) => ({ x0: p.x - CLUSTER_R, y0: p.y - CLUSTER_R, x1: p.x + CLUSTER_R, y1: p.y + CLUSTER_R }));
   const placed: Box[] = [];
   const dirs: [number, number][] = [[1, -0.6], [1, 0.6], [-1, -0.6], [-1, 0.6], [0, -1], [0, 1], [1.6, -1.4], [-1.6, -1.4], [1.6, 1.4], [-1.6, 1.4]];
   return points.map((p) => {
-    const w = p.name.length * 6.4 + 4, h = 13;
+    const w = (p.name.length + p.suffix.length) * 6.4 + 4, h = 13;
     for (const dist of [24, 38, 54]) {
       for (const [dx, dy] of dirs) {
         const lx = p.x + dx * dist, ly = p.y + dy * dist;
@@ -64,8 +64,16 @@ function placeLabels<P extends { name: string; x: number; y: number }>(points: P
 
 type Tip = { x: number; y: number; title: string; lines: string[] };
 
-export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, zoomTo, onStateClick }: {
-  active: boolean; all: Sample[]; carriers: Set<string>; hover: string | null; onHover: (id: string | null) => void;
+// Short names for the per-sample effect line in the tooltip.
+const EFFECT_ABBR: Record<string, string> = {
+  Missense: "Mis", Synonymous: "Syn", Frameshift: "FS", "In-frame indel": "In-frame",
+  "Stop gained/lost": "Stop", "Start lost": "Start", "Non-coding": "Non-cod", Other: "Other",
+};
+
+export function IndiaMap({ active, all, carriers, counts, countLabel, hover, onHover, focus, blink, zoomTo, onStateClick }: {
+  active: boolean; all: Sample[]; carriers: Set<string>;
+  counts: Map<string, number> | null; countLabel: string;   // "All <effect>" mode: mutations per sample
+  hover: string | null; onHover: (id: string | null) => void;
   focus: string | null; blink: boolean; zoomTo: string[] | null; onStateClick: (n: string) => void;
 }) {
   const [tip, setTip] = useState<Tip | null>(null);
@@ -79,7 +87,8 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
 
   const points = Object.entries(groups).flatMap(([lgd, list]) => {
     const p = anchor(lgd);
-    return p ? [{ lgd, name: list[0]?.district ?? lgd, x: p[0], y: p[1] }] : [];
+    const suffix = counts ? ` · ${list.reduce((n, smp) => n + (counts.get(smp.id) ?? 0), 0)}` : "";
+    return p ? [{ lgd, name: list[0]?.district ?? lgd, suffix, x: p[0], y: p[1] }] : [];
   });
   const labels = placeLabels(points);
 
@@ -104,7 +113,7 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
                   if (!svg) return;
                   const r = svg.getBoundingClientRect();
                   setTip({ x: e.clientX - r.left, y: e.clientY - r.top, title: n,
-                    lines: st.length ? [`${st.length} samples sequenced`, active ? `${c} carry this SNP` : "Select a SNP to highlight"] : ["No samples"] });
+                    lines: st.length ? [`${st.length} samples sequenced`, active ? `${c} ${counts ? `carry ${countLabel}` : "carry this mutation"}` : "Select a mutation to highlight"] : ["No samples"] });
                 }} />
             );
           })}
@@ -119,7 +128,7 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
               );
             })}
           </g>
-          {active && labels.map(({ lgd, name, x, y, lx, ly, anchor: ta }) => {
+          {active && labels.map(({ lgd, name, suffix, x, y, lx, ly, anchor: ta }) => {
             const list = groups[lgd] ?? [];
             const state = list[0]?.state ?? "";
             const blinking = blink && list.some((sample) => carriers.has(sample.id)) && (!focus || focus === state);
@@ -128,7 +137,9 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
               <g key={lgd} className={`pointer-events-none transition-opacity ${focus && focus !== state ? "opacity-25" : ""}`}>
                 {blinking && <circle data-blinking-district={name} cx={x} cy={y} r={22} className={`district-pulse ${state === "Maharashtra" ? "stroke-mh" : "stroke-od"} fill-none stroke-2`} />}
                 <line x1={x + (dx / len) * (CLUSTER_R - 4)} y1={y + (dy / len) * (CLUSTER_R - 4)} x2={lx - (dx / len) * 3} y2={ly - (dy / len) * 3} className="map-leader" />
-                <text x={lx} y={ly} dy="0.35em" textAnchor={ta} className="map-label">{name}</text>
+                <text x={lx} y={ly} dy="0.35em" textAnchor={ta} className="map-label">
+                  {name}{suffix && <tspan className="map-label-count">{suffix}</tspan>}
+                </text>
                 {list.map((s, i) => {
                   const a = (i / list.length) * Math.PI * 2 - Math.PI / 2;
                   const r = list.length > 1 ? 8 : 0;
@@ -148,7 +159,12 @@ export function IndiaMap({ active, all, carriers, hover, onHover, focus, blink, 
                           if (!svg) return;
                           const rr = svg.getBoundingClientRect();
                           setTip({ x: e.clientX - rr.left, y: e.clientY - rr.top, title: s.sampleId,
-                            lines: [`${s.id} · ${s.location}`, `${s.district}, ${s.state}`, s.date || "Date unknown", has ? "SNP present" : "SNP absent"] });
+                            lines: [
+                              `${s.id} · ${s.location}`, `${s.district}, ${s.state} · ${s.date || "date unknown"}`,
+                              counts ? `${counts.get(s.id) ?? 0} ${countLabel}` : has ? "Mutation present" : "Mutation absent",
+                              `${s.totalMutations} mutations (${s.privateMutations} private)`,
+                              Object.entries(s.effects).filter(([, n]) => n > 0).map(([g, n]) => `${EFFECT_ABBR[g] ?? g} ${n}`).join(" · "),
+                            ] });
                         }}
                         onMouseLeave={() => onHover(null)} />
                     </g>

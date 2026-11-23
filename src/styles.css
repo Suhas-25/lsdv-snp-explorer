@@ -186,6 +186,7 @@
   .map-district-sampled { fill-opacity: .7; stroke-opacity: .9; stroke-width: .6; }
   .map-leader { stroke: var(--foreground); stroke-opacity: .45; stroke-width: .7; }
   .map-label { fill: var(--foreground); font-size: 10.5px; font-weight: 600; paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
+  .map-label-count { fill: var(--primary); font-family: var(--font-mono); font-weight: 700; }
   @media (prefers-reduced-motion: reduce) { .map-camera { transition: none; } }
   .map-outline { fill: none; stroke: var(--color-map-line); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; opacity: .7; }
   .map-dot { transform-box: fill-box; transform-origin: center; transition: transform .2s ease; cursor: pointer; }

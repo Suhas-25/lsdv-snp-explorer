@@ -4,15 +4,17 @@ import { Dna, MapPinned, Table2, CalendarRange, Activity } from "lucide-react";
 import { IndiaMap } from "@/components/IndiaMap";
 import { Timeline } from "@/components/Timeline";
 import { collectionEvents, collectionPlayback, DATE_HOLD_MS, DATE_TRAVEL_MS, filterCollectionDate } from "@/lib/collection-timeline";
-import { districtTone, reference, samples, snps, samplesWithSnp, stateDistricts } from "@/lib/snp-data";
+import {
+  ALL_MUTATIONS, districtTone, effectCounts, effectGroups, mutationsFor, reference, samples, snps, samplesWithSnp, stateDistricts,
+} from "@/lib/snp-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Selected SNP Distribution | LSDV Genomic Surveillance" },
-      { name: "description", content: "Interactive map, table and timeline of LSDV samples carrying a selected SNP across Maharashtra and Odisha." },
-      { property: "og:title", content: "Selected SNP Distribution | LSDV" },
-      { property: "og:description", content: "Explore where a selected Lumpy Skin Disease Virus SNP is circulating in India." },
+      { title: "Mutation Distribution | LSDV Genomic Surveillance" },
+      { name: "description", content: "Interactive map, table and timeline of LSDV samples carrying a selected mutation across Maharashtra and Odisha." },
+      { property: "og:title", content: "Mutation Distribution | LSDV" },
+      { property: "og:description", content: "Explore where Lumpy Skin Disease Virus mutations are circulating in India." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -21,6 +23,8 @@ export const Route = createFileRoute("/")({
 });
 
 const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+const DEFAULT_GROUP = effectGroups.includes("Missense") ? "Missense" : effectGroups[0] ?? "";
+const CLASS_LABEL: Record<string, string> = { core: "Core · all samples", shared: "Shared", singleton: "Singleton · 1 sample" };
 
 function Panel({ icon: Icon, title, children, className = "", dense = false }: { icon: typeof Dna; title: string; children: React.ReactNode; className?: string; dense?: boolean }) {
   return (
@@ -36,16 +40,29 @@ function Panel({ icon: Icon, title, children, className = "", dense = false }: {
 
 function Index() {
   const [hover, setHover] = useState<string | null>(null);
-  const [key, setKey] = useState(snps[0]?.key ?? "");
-  const snp = snps.find((s) => s.key === key) ?? null;
-  const hits = useMemo(() => (snp ? samplesWithSnp(snp) : []), [snp]);
+
+  // Effect → Mutation selection. Core mutations (in every sample) are hidden unless asked for.
+  const [group, setGroup] = useState(DEFAULT_GROUP);
+  const [includeCore, setIncludeCore] = useState(false);
+  const options = useMemo(() => mutationsFor(group, includeCore), [group, includeCore]);
+  const [key, setKey] = useState(() => mutationsFor(DEFAULT_GROUP, false)[0]?.key ?? ALL_MUTATIONS);
+  const allMode = key === ALL_MUTATIONS;
+  const snp = allMode ? null : snps.find((s) => s.key === key) ?? null;
+  const counts = useMemo(() => (allMode ? effectCounts(group, includeCore) : null), [allMode, group, includeCore]);
+  const countLabel = `${includeCore ? "" : "non-core "}${group.toLowerCase()} mutations`;
+
+  const hits = useMemo(() => {
+    if (counts) return samples.filter((s) => (counts.get(s.id) ?? 0) > 0).map((s) => ({ ...s, status: `${counts.get(s.id)} mutations` }));
+    return snp ? samplesWithSnp(snp) : [];
+  }, [counts, snp]);
+
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const mh = hits.filter((h) => h.state === "Maharashtra").length;
   const od = hits.filter((h) => h.state === "Odisha").length;
   const [filter, setFilter] = useState<"all" | "Maharashtra" | "Odisha">("all");
   const stateHits = filter === "all" ? hits : hits.filter((h) => h.state === filter);
-  const dates = collectionEvents(stateHits).map(([date]) => date);
+  const dates = collectionEvents(stateHits.filter((h) => h.date)).map(([date]) => date);
   const frame = elapsed === null ? null : collectionPlayback(dates, elapsed);
   const selectedDate = frame?.date ?? null;
   // Camera follows playback: it settles on the current date's districts and starts gliding toward the next date's while the cursor travels.
@@ -83,42 +100,77 @@ function Index() {
   };
   const toggle = (f: "Maharashtra" | "Odisha") => { resetTimeline(); setFilter((c) => (c === f ? "all" : f)); };
 
+  // Changing the effect (or the core toggle) jumps to the first mutation of the new list.
+  const chooseGroup = (g: string) => { resetTimeline(); setGroup(g); setKey(mutationsFor(g, includeCore)[0]?.key ?? ALL_MUTATIONS); };
+  const chooseCore = (on: boolean) => {
+    resetTimeline(); setIncludeCore(on);
+    if (!allMode && !mutationsFor(group, on).some((m) => m.key === key)) setKey(mutationsFor(group, on)[0]?.key ?? ALL_MUTATIONS);
+  };
+
+  const subject = allMode ? `all ${countLabel}` : snp ? snp.label : "selected mutation";
+  const cards: [string, string | number][] = allMode
+    ? [
+        ["Effect", group], ["Mutations", options.length],
+        ["Samples with ≥1", `${hits.length} of ${samples.length}`],
+        ["Most in one sample", Math.max(0, ...[...(counts?.values() ?? [])])],
+      ]
+    : snp
+      ? [
+          ["Position", snp.position], ["Change", `${snp.ref}→${snp.alt}`], ["Gene", snp.gene || "—"], ["Protein", snp.protein || "—"],
+          ["Effect", snp.effect.replaceAll("_variant", "").replaceAll("_", " ").replaceAll("&", " + ")], ["Impact", snp.impact || "—"],
+          ["Carriers", `${snp.count} of ${samples.length} (${Math.round(snp.freq * 100)}%)`], ["Class", CLASS_LABEL[snp.cls] ?? snp.cls],
+        ]
+      : [];
+
   return (
     <div className="min-h-screen bg-background">
       <header className="hero-band">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6 py-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-end gap-4 px-6 py-3">
           <div className="flex-1">
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] opacity-75">LSDV Genomic Surveillance · Level 2</p>
-            <h1 className="font-display text-xl font-bold md:text-2xl">Selected SNP Distribution</h1>
+            <h1 className="font-display text-xl font-bold md:text-2xl">Mutation Distribution</h1>
             <p className="font-mono text-[11px] opacity-75">Reference {reference} · {samples.length} NCL-BAIF isolates (Dharini snippy-fasta) · {snps.length} mutations · {new Set(samples.map((s) => s.state)).size} states</p>
           </div>
-          <label className="flex min-w-[220px] flex-col gap-0.5">
-            <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Select SNP</span>
-            <select value={key} onChange={(e) => { resetTimeline(); setKey(e.target.value); }} className="snp-select">
-                            {snps.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          <label className="flex min-w-[170px] flex-col gap-0.5">
+            <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Effect</span>
+            <select value={group} onChange={(e) => chooseGroup(e.target.value)} className="snp-select">
+              {effectGroups.map((g) => <option key={g} value={g}>{g} ({mutationsFor(g, includeCore).length})</option>)}
             </select>
+          </label>
+          <label className="flex min-w-[280px] flex-col gap-0.5">
+            <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Mutation</span>
+            <select value={key} onChange={(e) => { resetTimeline(); setKey(e.target.value); }} className="snp-select">
+              <option value={ALL_MUTATIONS}>All {group} ({options.length})</option>
+              {options.map((s) => <option key={s.key} value={s.key}>{s.label} · {s.count}/{samples.length}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-xs opacity-90">
+            <input type="checkbox" checked={includeCore} onChange={(e) => chooseCore(e.target.checked)} className="h-3.5 w-3.5 accent-current" />
+            Include core
           </label>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl space-y-4 px-6 py-6">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Stat label="Total samples with SNP" value={hits.length} sub={`of ${samples.length} sequenced · click to show all`} tone="primary" active={filter === "all"} onClick={() => { resetTimeline(); setFilter("all"); }} />
+          <Stat label={allMode ? `Samples with ${group}` : "Samples with mutation"} value={hits.length} sub={`of ${samples.length} sequenced · click to show all`} tone="primary" active={filter === "all"} onClick={() => { resetTimeline(); setFilter("all"); }} />
           <Stat label="Maharashtra" value={mh} sub="click to filter" tone="mh" active={filter === "Maharashtra"} onClick={() => toggle("Maharashtra")} />
           <Stat label="Odisha" value={od} sub="click to filter" tone="od" active={filter === "Odisha"} onClick={() => toggle("Odisha")} />
         </div>
 
         <div className="min-w-0 space-y-4">
-            <Panel icon={Dna} title="Selected SNP">
-              <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
-                {[["Position", snp?.position ?? "—"], ["REF", snp?.ref ?? "—"], ["ALT", snp?.alt ?? "—"], ["States", new Set(hits.map((h) => h.state)).size]].map(([k, v]) => (
-                  <div key={k} className="tile-pop rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="text-lg font-semibold text-foreground">{v}</dd></div>
-                ))}
-              </dl>
+            <Panel icon={Dna} title={allMode ? `All ${group} mutations${includeCore ? "" : " (non-core)"}` : "Selected mutation"}>
+              {cards.length ? (
+                <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
+                  {cards.map(([k, v]) => (
+                    <div key={k} className="tile-pop min-w-0 rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="truncate text-lg font-semibold text-foreground" title={String(v)}>{v}</dd></div>
+                  ))}
+                </dl>
+              ) : <p className="text-sm text-muted-foreground">No {group.toLowerCase()} mutations{includeCore ? "" : " outside the core"}. Tick “Include core” or pick another effect.</p>}
             </Panel>
           <Panel icon={MapPinned} title="Geographic distribution" dense>
             <div className="mx-auto h-[min(65vh,600px)] min-h-[340px] w-full">
-            <IndiaMap active={!!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} zoomTo={zoomTo} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
+            <IndiaMap active={allMode || !!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} counts={counts} countLabel={countLabel} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} zoomTo={zoomTo} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
             </div>
             <div className="mt-1 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
               {["Maharashtra", "Odisha"].map((st) => (
@@ -127,21 +179,22 @@ function Index() {
                   {(stateDistricts[st] ?? []).map((d) => <Legend key={d} color={districtTone(st, d)} label={d} />)}
                 </span>
               ))}
-              <Legend cls="bg-background border border-foreground/60" label="SNP absent" />
+              <Legend cls="bg-background border border-foreground/60" label={allMode ? "None of these mutations" : "Mutation absent"} />
+              {allMode && <span className="font-mono text-primary">· n = mutations in district</span>}
             </div>
             <div className="mt-1.5 border-t border-border/70 pt-1.5">
               <h3 className="mb-1 flex items-center gap-2 font-display text-sm font-semibold text-foreground">
                 <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary"><CalendarRange className="h-3.5 w-3.5" /></span>
                 Collection timeline
               </h3>
-              <Timeline hits={stateHits} selectedDate={selectedDate} cursorTime={frame?.time ?? null} playing={playing} complete={frame?.complete ?? false} onPlayPause={playPause} onRestart={resetTimeline} onSeek={seek} />
+              <Timeline hits={stateHits.filter((h) => h.date)} selectedDate={selectedDate} cursorTime={frame?.time ?? null} playing={playing} complete={frame?.complete ?? false} onPlayPause={playPause} onRestart={resetTimeline} onSeek={seek} />
             </div>
           </Panel>
-            <Panel icon={Table2} title={snp ? `Samples carrying ${snp.label}` : "Samples carrying selected SNP"}>
+            <Panel icon={Table2} title={`Samples carrying ${subject}`}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="border-b text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>{["Sample ID", "State", "District", "Collection Date", "Status"].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr>
+                    <tr>{["Sample ID", "State", "District", "Location", "Collection Date", allMode ? "Count" : "Status"].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {shown.map((h) => (
@@ -149,18 +202,19 @@ function Index() {
                         <td className="px-3 py-2 font-mono text-xs">{h.sampleId}<span className="block text-[10px] text-muted-foreground">{h.id}</span></td>
                         <td className="px-3 py-2"><span className={`inline-flex items-center gap-1.5`}><span className={`h-2 w-2 rounded-full ${h.state === "Maharashtra" ? "bg-mh" : "bg-od"}`} />{h.state}</span></td>
                         <td className="px-3 py-2"><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: districtTone(h.state, h.district) }} />{h.district}</span></td>
+                        <td className="px-3 py-2 text-xs">{h.location}</td>
                         <td className="px-3 py-2 font-mono text-xs">{h.date ? fmt(h.date) : "—"}</td>
                         <td className="px-3 py-2"><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{h.status}</span></td>
                       </tr>
                     ))}
-                    {shown.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">{snp ? "No samples match the selected SNP, state and collection date." : "Select a SNP above to see which samples carry it."}</td></tr>}
+                    {shown.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{allMode || snp ? "No samples match the selection, state and collection date." : "Pick an effect and a mutation above."}</td></tr>}
                   </tbody>
                 </table>
               </div>
             </Panel>
         </div>
 
-        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> Samples are plotted at district centroids, matched by LGD code. State and national boundaries: DataMeet (official Survey of India outline); district boundaries: Dharini (LGD). Reference genome: {reference}</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> Samples are plotted at district centroids, matched by LGD code. Core = present in every sample (hidden unless “Include core” is ticked). State and national boundaries: DataMeet (official Survey of India outline); district boundaries: Dharini (LGD). Reference genome: {reference}</p>
       </main>
     </div>
   );

@@ -113,8 +113,31 @@ npm test           # unit tests
 npm run build      # production build
 ```
 
-Deployment: pushing to GitHub triggers Vercel. `main` is the live demo; other branches (like
-`dharini-matrix`) get their own preview link. The project is also connected to Lovable.
+### Running the site on your own computer
+
+```sh
+cd lsdv-snp-explorer
+git checkout dharini-matrix     # this version; `main` is the older demo
+npm install --legacy-peer-deps  # first time only
+npm run dev
+```
+
+The terminal prints a local link, usually **http://localhost:5173/** (another port if 5173 is busy,
+e.g. `npm run dev -- --port 5191`). Open it in a browser.
+
+- Keep that terminal open while using the site; **Ctrl + C** stops it.
+- `localhost` works only on your own computer; it cannot be shared.
+- Restarting the computer stops the site; run `npm run dev` again.
+
+### Sharing it with others
+
+1. Push the branch: `git push`.
+2. Vercel builds every pushed branch. Open **Vercel → project → Deployments** and find the
+   deployment for `dharini-matrix`.
+3. Share its **preview link**; it works from any computer.
+
+`main` is the live demo link. Branches like `dharini-matrix` get their own preview link until they
+are merged into `main`. The project is also connected to Lovable.
 
 ---
 

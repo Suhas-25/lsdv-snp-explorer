@@ -45,21 +45,40 @@ export const snps: Snp[] = data.mutations.map((m: RawMutation) => ({
   gene: m.gene, protein: m.protein, count: m.count, freq: m.freq, cls: m.class, carriers: m.carriers,
 }));
 
-// Value of the mutation dropdown meaning "all mutations of the chosen effect".
+// Dropdown values meaning "no filter": all effects, all genes, all mutations of the selection.
+export const ALL_EFFECTS = "__all_effects__";
+export const ALL_GENES = "__all_genes__";
 export const ALL_MUTATIONS = "__all__";
 
-// Core mutations are carried by every sample (lineage differences from the reference), so they
-// are hidden by default: they would light up every district for every choice.
-export function mutationsFor(group: string, includeCore: boolean) {
+// Selection flow: Effect → Gene → Mutation. Core mutations are carried by every sample (lineage
+// differences from the reference), so they are hidden by default: they would light up every district.
+function inSelection(s: Snp, group: string, includeCore: boolean) {
+  return (group === ALL_EFFECTS || s.effectGroup === group) && (includeCore || s.cls !== "core");
+}
+
+export function mutationsFor(group: string, includeCore: boolean, gene: string = ALL_GENES) {
   return snps
-    .filter((s) => s.effectGroup === group && (includeCore || s.cls !== "core"))
+    .filter((s) => inSelection(s, group, includeCore) && (gene === ALL_GENES || s.gene === gene))
     .sort((a, b) => b.count - a.count || a.position - b.position);
 }
 
-// For "All <effect>": how many of those mutations each sample carries.
-export function effectCounts(group: string, includeCore: boolean) {
+// Genes that have at least one mutation of the chosen effect, in genome order, with how many.
+export function genesFor(group: string, includeCore: boolean) {
+  const genes = new Map<string, { gene: string; mutations: number; first: number }>();
+  for (const s of snps) {
+    if (!s.gene || !inSelection(s, group, includeCore)) continue;
+    const g = genes.get(s.gene) ?? { gene: s.gene, mutations: 0, first: s.position };
+    g.mutations += 1;
+    g.first = Math.min(g.first, s.position);
+    genes.set(s.gene, g);
+  }
+  return [...genes.values()].sort((a, b) => a.first - b.first);
+}
+
+// For "All …" mode: how many of the selected mutations each sample carries.
+export function effectCounts(group: string, includeCore: boolean, gene: string = ALL_GENES) {
   const counts = new Map<string, number>();
-  for (const m of mutationsFor(group, includeCore))
+  for (const m of mutationsFor(group, includeCore, gene))
     for (const id of m.carriers) counts.set(id, (counts.get(id) ?? 0) + 1);
   return counts;
 }

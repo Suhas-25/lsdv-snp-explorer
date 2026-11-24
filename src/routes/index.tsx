@@ -5,7 +5,7 @@ import { IndiaMap } from "@/components/IndiaMap";
 import { Timeline } from "@/components/Timeline";
 import { collectionEvents, collectionPlayback, DATE_HOLD_MS, DATE_TRAVEL_MS, filterCollectionDate } from "@/lib/collection-timeline";
 import {
-  ALL_MUTATIONS, districtTone, effectCounts, effectGroups, mutationsFor, reference, samples, snps, samplesWithSnp, stateDistricts,
+  ALL_EFFECTS, ALL_GENES, ALL_MUTATIONS, districtTone, effectCounts, effectGroups, genesFor, mutationsFor, reference, samples, snps, samplesWithSnp, stateDistricts,
 } from "@/lib/snp-data";
 
 export const Route = createFileRoute("/")({
@@ -41,15 +41,20 @@ function Panel({ icon: Icon, title, children, className = "", dense = false }: {
 function Index() {
   const [hover, setHover] = useState<string | null>(null);
 
-  // Effect → Mutation selection. Core mutations (in every sample) are hidden unless asked for.
+  // Effect → Gene → Mutation selection. Core mutations (in every sample) are hidden unless asked for.
   const [group, setGroup] = useState(DEFAULT_GROUP);
+  const [gene, setGene] = useState(ALL_GENES);
   const [includeCore, setIncludeCore] = useState(false);
-  const options = useMemo(() => mutationsFor(group, includeCore), [group, includeCore]);
+  const genes = useMemo(() => genesFor(group, includeCore), [group, includeCore]);
+  const options = useMemo(() => mutationsFor(group, includeCore, gene), [group, includeCore, gene]);
   const [key, setKey] = useState(() => mutationsFor(DEFAULT_GROUP, false)[0]?.key ?? ALL_MUTATIONS);
   const allMode = key === ALL_MUTATIONS;
   const snp = allMode ? null : snps.find((s) => s.key === key) ?? null;
-  const counts = useMemo(() => (allMode ? effectCounts(group, includeCore) : null), [allMode, group, includeCore]);
-  const countLabel = `${includeCore ? "" : "non-core "}${group.toLowerCase()} mutations`;
+  const counts = useMemo(() => (allMode ? effectCounts(group, includeCore, gene) : null), [allMode, group, includeCore, gene]);
+  const effectName = group === ALL_EFFECTS ? "All effects" : group;
+  const geneName = gene === ALL_GENES ? "" : gene;
+  const scope = `${group === ALL_EFFECTS ? "" : `${group} `}mutations${geneName ? ` in ${geneName}` : ""}`;  // e.g. "Frameshift mutations in LSDV047"
+  const countLabel = `${includeCore ? "" : "non-core "}${scope.charAt(0).toLowerCase()}${scope.slice(1)}`;
 
   const hits = useMemo(() => {
     if (counts) return samples.filter((s) => (counts.get(s.id) ?? 0) > 0).map((s) => ({ ...s, status: `${counts.get(s.id)} mutations` }));
@@ -100,17 +105,21 @@ function Index() {
   };
   const toggle = (f: "Maharashtra" | "Odisha") => { resetTimeline(); setFilter((c) => (c === f ? "all" : f)); };
 
-  // Changing the effect (or the core toggle) jumps to the first mutation of the new list.
-  const chooseGroup = (g: string) => { resetTimeline(); setGroup(g); setKey(mutationsFor(g, includeCore)[0]?.key ?? ALL_MUTATIONS); };
+  // Changing the effect resets the gene; changing the effect or gene jumps to the first mutation of the new list.
+  const chooseGroup = (g: string) => { resetTimeline(); setGroup(g); setGene(ALL_GENES); setKey(mutationsFor(g, includeCore)[0]?.key ?? ALL_MUTATIONS); };
+  const chooseGene = (g: string) => { resetTimeline(); setGene(g); setKey(g === ALL_GENES ? mutationsFor(group, includeCore)[0]?.key ?? ALL_MUTATIONS : ALL_MUTATIONS); };
   const chooseCore = (on: boolean) => {
     resetTimeline(); setIncludeCore(on);
-    if (!allMode && !mutationsFor(group, on).some((m) => m.key === key)) setKey(mutationsFor(group, on)[0]?.key ?? ALL_MUTATIONS);
+    // Unticking core can empty the chosen gene; fall back to all genes.
+    const g = gene !== ALL_GENES && !genesFor(group, on).some((x) => x.gene === gene) ? ALL_GENES : gene;
+    setGene(g);
+    if (!allMode && !mutationsFor(group, on, g).some((m) => m.key === key)) setKey(mutationsFor(group, on, g)[0]?.key ?? ALL_MUTATIONS);
   };
 
   const subject = allMode ? `all ${countLabel}` : snp ? snp.label : "selected mutation";
   const cards: [string, string | number][] = allMode
     ? [
-        ["Effect", group], ["Mutations", options.length],
+        ["Effect", effectName], ["Gene", geneName || "All genes"], ["Mutations", options.length],
         ["Samples with ≥1", `${hits.length} of ${samples.length}`],
         ["Most in one sample", Math.max(0, ...[...(counts?.values() ?? [])])],
       ]
@@ -134,13 +143,21 @@ function Index() {
           <label className="flex min-w-[170px] flex-col gap-0.5">
             <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Effect</span>
             <select value={group} onChange={(e) => chooseGroup(e.target.value)} className="snp-select">
+              <option value={ALL_EFFECTS}>All effects ({mutationsFor(ALL_EFFECTS, includeCore).length})</option>
               {effectGroups.map((g) => <option key={g} value={g}>{g} ({mutationsFor(g, includeCore).length})</option>)}
             </select>
           </label>
-          <label className="flex min-w-[280px] flex-col gap-0.5">
+          <label className="flex min-w-[150px] flex-col gap-0.5">
+            <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Gene</span>
+            <select value={gene} onChange={(e) => chooseGene(e.target.value)} className="snp-select">
+              <option value={ALL_GENES}>All genes ({genes.length})</option>
+              {genes.map((g) => <option key={g.gene} value={g.gene}>{g.gene} ({g.mutations})</option>)}
+            </select>
+          </label>
+          <label className="flex min-w-[260px] flex-col gap-0.5">
             <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Mutation</span>
             <select value={key} onChange={(e) => { resetTimeline(); setKey(e.target.value); }} className="snp-select">
-              <option value={ALL_MUTATIONS}>All {group} ({options.length})</option>
+              <option value={ALL_MUTATIONS}>All {scope} ({options.length})</option>
               {options.map((s) => <option key={s.key} value={s.key}>{s.label} · {s.count}/{samples.length}</option>)}
             </select>
           </label>
@@ -153,20 +170,20 @@ function Index() {
 
       <main className="mx-auto max-w-7xl space-y-4 px-6 py-6">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Stat label={allMode ? `Samples with ${group}` : "Samples with mutation"} value={hits.length} sub={`of ${samples.length} sequenced · click to show all`} tone="primary" active={filter === "all"} onClick={() => { resetTimeline(); setFilter("all"); }} />
+          <Stat label={allMode ? `Samples with ${scope}` : "Samples with mutation"} value={hits.length} sub={`of ${samples.length} sequenced · click to show all`} tone="primary" active={filter === "all"} onClick={() => { resetTimeline(); setFilter("all"); }} />
           <Stat label="Maharashtra" value={mh} sub="click to filter" tone="mh" active={filter === "Maharashtra"} onClick={() => toggle("Maharashtra")} />
           <Stat label="Odisha" value={od} sub="click to filter" tone="od" active={filter === "Odisha"} onClick={() => toggle("Odisha")} />
         </div>
 
         <div className="min-w-0 space-y-4">
-            <Panel icon={Dna} title={allMode ? `All ${group} mutations${includeCore ? "" : " (non-core)"}` : "Selected mutation"}>
+            <Panel icon={Dna} title={allMode ? `All ${scope}${includeCore ? "" : " (non-core)"}` : "Selected mutation"}>
               {cards.length ? (
-                <dl className="grid grid-cols-2 gap-3 font-mono text-sm sm:grid-cols-4">
+                <dl className={`grid grid-cols-2 gap-3 font-mono text-sm ${allMode ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
                   {cards.map(([k, v]) => (
                     <div key={k} className="tile-pop min-w-0 rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="truncate text-lg font-semibold text-foreground" title={String(v)}>{v}</dd></div>
                   ))}
                 </dl>
-              ) : <p className="text-sm text-muted-foreground">No {group.toLowerCase()} mutations{includeCore ? "" : " outside the core"}. Tick “Include core” or pick another effect.</p>}
+              ) : <p className="text-sm text-muted-foreground">No {countLabel} here. Tick “Include core” or pick another effect or gene.</p>}
             </Panel>
           <Panel icon={MapPinned} title="Geographic distribution" dense>
             <div className="mx-auto h-[min(65vh,600px)] min-h-[340px] w-full">

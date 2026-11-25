@@ -8,6 +8,9 @@ This branch (`dharini-matrix`) runs on **real data**: annotated VCFs from the Dh
 pipeline, merged into a samples × mutations matrix, with districts matched by **LGD code** to
 Dharini's own district boundaries.
 
+**Live preview (this branch):** https://lsdv-snp-explorer-git-dharini-matrix-bio-info1.vercel.app
+— public, no login; updates automatically 1–2 minutes after every `git push` to `dharini-matrix`.
+
 > Current data: 5 NCL-BAIF isolates (Maharashtra: Ahmednagar, Nashik, Pune · Odisha: Angul, Mayurbhanj),
 > 273 unique mutations vs reference NC_003027.1.
 
@@ -162,13 +165,20 @@ e.g. `npm run dev -- --port 5191`). Open it in a browser.
 
 ### Sharing it with others
 
-1. Push the branch: `git push`.
-2. Vercel builds every pushed branch. Open **Vercel → project → Deployments** and find the
-   deployment for `dharini-matrix`.
-3. Share its **preview link**; it works from any computer.
+**Link to share:** https://lsdv-snp-explorer-git-dharini-matrix-bio-info1.vercel.app
 
-`main` is the live demo link. Branches like `dharini-matrix` get their own preview link until they
-are merged into `main`. The project is also connected to Lovable.
+- Anyone can open it (computer or phone), no Vercel login needed.
+- It always shows the latest push to `dharini-matrix`: run `git push`, wait 1–2 minutes, refresh.
+- To check a build: **Vercel → lsdv-snp-explorer → Deployments**, newest `dharini-matrix` row should be **Ready**.
+- It is public because **Vercel Authentication is disabled** (Project → Settings → Deployment Protection).
+  If that is switched back on, the link asks for a Vercel login.
+
+| Link | Shows |
+|---|---|
+| https://lsdv-snp-explorer-git-dharini-matrix-bio-info1.vercel.app | This branch (`dharini-matrix`), real Dharini data |
+| https://lsdv-snp-explorer.vercel.app | `main`: the older demo, until `dharini-matrix` is merged into `main` |
+
+The project is also connected to Lovable, which syncs from `main`.
 
 ---
 

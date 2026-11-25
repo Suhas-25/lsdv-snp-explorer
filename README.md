@@ -23,6 +23,8 @@ Dharini's own district boundaries.
 | **All [selection]** | First option in the mutation list (e.g. "All Frameshift mutations in LSDV047"): the map shows, per district, how many of those mutations its samples carry |
 | **Core mutations not listed** | Mutations present in every sample are left out of all dropdowns and counts (they would light up every district); the header shows how many. They remain in `mutation_info.csv` and the matrix |
 | **India map** | Dharini district shapes; carrier districts shaded, one dot per sample (filled = carries the mutation, hollow = absent) |
+| **District panel** (right of the map) | Districts grouped by state (collapsible), carriers first, with `carrier samples / samples` (and mutation count in "All" mode). Hover highlights the district on the map, click zooms to it. Scrolls, and shows a search box from 12 districts, so it scales as samples from more districts and states are added. On narrow screens it moves below the map |
+| **Colours** | One colour per state (Maharashtra blue, Odisha orange). Per-district shades were dropped because they become indistinguishable with many districts; district names are in the map labels and the panel |
 | **Sample tooltip** | Lab name, GenBank ID, village, district, date, presence or count, total/private mutations, effect breakdown |
 | **Mutation cards** | Position, change, gene, protein change, effect, impact, carriers (n of N, %) |
 | **Summary cards** | Samples carrying the selection, split by Maharashtra / Odisha (click to filter) |
@@ -122,6 +124,7 @@ Synonymous 83, Frameshift 81, Missense 56, Non-coding 40, In-frame indel 12, Sto
 | Path | Role |
 |---|---|
 | `src/lib/snp-data.ts` | Loads `explorer_data.json`; `mutationsFor(effect, includeCore, gene)`, `genesFor(effect, includeCore)`, `effectCounts(...)`, `samplesWithSnp(...)`, district colours |
+| `src/components/DistrictPanel.tsx` | District list beside the map: state groups, carrier counts, search, hover/click to highlight and zoom |
 | `src/components/IndiaMap.tsx` | Map: state outlines, LGD district shapes, sample dots, labels (with counts in "All" mode), tooltips, playback zoom |
 | `src/components/Timeline.tsx` | Collection timeline with playback |
 | `src/lib/collection-timeline.ts` | Date grouping, filtering and playback frames (shared by timeline, map and tests) |

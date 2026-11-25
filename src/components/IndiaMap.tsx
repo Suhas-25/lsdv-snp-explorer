@@ -70,10 +70,11 @@ const EFFECT_ABBR: Record<string, string> = {
   "Stop gained/lost": "Stop", "Start lost": "Start", "Non-coding": "Non-cod", Other: "Other",
 };
 
-export function IndiaMap({ active, all, carriers, counts, countLabel, hover, onHover, focus, blink, zoomTo, onStateClick }: {
+export function IndiaMap({ active, all, carriers, counts, countLabel, hover, onHover, highlight, focus, blink, zoomTo, onStateClick }: {
   active: boolean; all: Sample[]; carriers: Set<string>;
   counts: Map<string, number> | null; countLabel: string;   // "All <effect>" mode: mutations per sample
   hover: string | null; onHover: (id: string | null) => void;
+  highlight: string | null;   // district LGD code hovered or picked in the district panel
   focus: string | null; blink: boolean; zoomTo: string[] | null; onStateClick: (n: string) => void;
 }) {
   const [tip, setTip] = useState<Tip | null>(null);
@@ -122,8 +123,9 @@ export function IndiaMap({ active, all, carriers, counts, countLabel, hover, onH
               const { state, district_lgd } = f.properties;
               const list = groups[String(district_lgd)];
               const sampled = list?.some((s) => carriers.has(s.id)) && active;
+              const lit = highlight === String(district_lgd);
               return (
-                <path key={district_lgd} d={path(f) ?? ""} className={`map-district ${sampled ? "map-district-sampled" : ""} ${focus && active && focus !== state ? "opacity-40" : ""}`}
+                <path key={district_lgd} d={path(f) ?? ""} className={`map-district ${sampled ? "map-district-sampled" : ""} ${lit ? "map-district-lit" : ""} ${focus && active && focus !== state ? "opacity-40" : ""}`}
                   style={sampled && list?.[0] ? { fill: districtTone(state, list[0].district) } : undefined} />
               );
             })}
@@ -135,6 +137,7 @@ export function IndiaMap({ active, all, carriers, counts, countLabel, hover, onH
             const dx = lx - x, dy = ly - y, len = Math.hypot(dx, dy) || 1;
             return (
               <g key={lgd} className={`pointer-events-none transition-opacity ${focus && focus !== state ? "opacity-25" : ""}`}>
+                {highlight === lgd && <circle cx={x} cy={y} r={CLUSTER_R + 4} className="map-district-ring" />}
                 {blinking && <circle data-blinking-district={name} cx={x} cy={y} r={22} className={`district-pulse ${state === "Maharashtra" ? "stroke-mh" : "stroke-od"} fill-none stroke-2`} />}
                 <line x1={x + (dx / len) * (CLUSTER_R - 4)} y1={y + (dy / len) * (CLUSTER_R - 4)} x2={lx - (dx / len) * 3} y2={ly - (dy / len) * 3} className="map-leader" />
                 <text x={lx} y={ly} dy="0.35em" textAnchor={ta} className="map-label">

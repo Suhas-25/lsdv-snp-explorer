@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Dna, MapPinned, CalendarRange, Activity } from "lucide-react";
+import { DistrictPanel } from "@/components/DistrictPanel";
 import { IndiaMap } from "@/components/IndiaMap";
 import { Timeline } from "@/components/Timeline";
 import { collectionEvents, collectionPlayback, DATE_HOLD_MS, DATE_TRAVEL_MS, filterCollectionDate } from "@/lib/collection-timeline";
 import {
-  ALL_EFFECTS, ALL_GENES, ALL_MUTATIONS, districtTone, effectCounts, effectGroups, genesFor, mutationsFor, reference, samples, snps, samplesWithSnp, stateDistricts,
+  ALL_EFFECTS, ALL_GENES, ALL_MUTATIONS, effectCounts, effectGroups, genesFor, mutationsFor, reference, samples, snps, samplesWithSnp,
 } from "@/lib/snp-data";
 
 export const Route = createFileRoute("/")({
@@ -72,7 +73,10 @@ function Index() {
   const selectedDate = frame?.date ?? null;
   // Camera follows playback: it settles on the current date's districts and starts gliding toward the next date's while the cursor travels.
   const cameraDate = frame ? (frame.dwelling ? frame.date : dates[dates.indexOf(frame.date) + 1] ?? frame.date) : null;
-  const zoomTo = cameraDate ? [...new Set(filterCollectionDate(stateHits, cameraDate).map((h) => h.districtLgd))] : null;
+  // District panel: hover highlights a district on the map; click zooms to it (playback takes over the camera while playing).
+  const [pickDistrict, setPickDistrict] = useState<string | null>(null);
+  const [hoverDistrict, setHoverDistrict] = useState<string | null>(null);
+  const zoomTo = cameraDate ? [...new Set(filterCollectionDate(stateHits, cameraDate).map((h) => h.districtLgd))] : pickDistrict ? [pickDistrict] : null;
   useEffect(() => {
     if (!playing) return;
     let frameId = 0;
@@ -93,10 +97,11 @@ function Index() {
   const playPause = () => {
     if (playing) { setPlaying(false); return; }
     if (elapsed === null || frame?.complete) setElapsed(0);
-    setHover(null);
+    setHover(null); setPickDistrict(null);
     setPlaying(true);
   };
   const carriers = new Set(filterCollectionDate(hits, selectedDate).map((h) => h.id));
+  const visible = filterCollectionDate(samples, selectedDate);
   const seek = (date: string) => {
     const index = dates.indexOf(date);
     if (index < 0) return;
@@ -173,18 +178,12 @@ function Index() {
               ) : <p className="text-sm text-muted-foreground">No {countLabel} outside the core. Pick another effect or gene.</p>}
             </Panel>
           <Panel icon={MapPinned} title="Geographic distribution" dense>
-            <div className="mx-auto h-[min(65vh,600px)] min-h-[340px] w-full">
-            <IndiaMap active={allMode || !!snp} all={filterCollectionDate(samples, selectedDate)} carriers={carriers} counts={counts} countLabel={countLabel} hover={hover} onHover={setHover} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} zoomTo={zoomTo} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
-            </div>
-            <div className="mt-1 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-              {["Maharashtra", "Odisha"].map((st) => (
-                <span key={st} className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">{st}:</span>
-                  {(stateDistricts[st] ?? []).map((d) => <Legend key={d} color={districtTone(st, d)} label={d} />)}
-                </span>
-              ))}
-              <Legend cls="bg-background border border-foreground/60" label={allMode ? "None of these mutations" : "Mutation absent"} />
-              {allMode && <span className="font-mono text-primary">· n = mutations in district</span>}
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_250px]">
+              <div className="h-[min(65vh,600px)] min-h-[340px] w-full">
+                <IndiaMap active={allMode || !!snp} all={visible} carriers={carriers} counts={counts} countLabel={countLabel} hover={hover} onHover={setHover} highlight={hoverDistrict ?? pickDistrict} focus={filter === "all" ? null : filter} blink={playing && !!frame?.dwelling} zoomTo={zoomTo} onStateClick={(n) => (n === "Maharashtra" || n === "Odisha") && toggle(n)} />
+              </div>
+              <DistrictPanel all={visible} carriers={carriers} counts={counts} active={allMode || !!snp} focus={filter === "all" ? null : filter}
+                selected={pickDistrict} onSelect={setPickDistrict} onHover={setHoverDistrict} className="max-h-80 lg:h-[min(65vh,600px)] lg:max-h-none" />
             </div>
             <div className="mt-1.5 border-t border-border/70 pt-1.5">
               <h3 className="mb-1 flex items-center gap-2 font-display text-sm font-semibold text-foreground">
@@ -212,8 +211,4 @@ function Stat({ label, value, sub, tone, active, onClick }: { label: string; val
       <p className="text-xs text-muted-foreground">{sub}</p>
     </button>
   );
-}
-
-function Legend({ cls = "", color, label }: { cls?: string; color?: string; label: string }) {
-  return <span className="flex items-center gap-1.5"><span className={`h-3 w-3 rounded-full ${cls}`} style={color ? { background: color } : undefined} />{label}</span>;
 }

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Dna, MapPinned, Table2, CalendarRange, Activity } from "lucide-react";
+import { Dna, MapPinned, CalendarRange, Activity } from "lucide-react";
 import { IndiaMap } from "@/components/IndiaMap";
 import { Timeline } from "@/components/Timeline";
 import { collectionEvents, collectionPlayback, DATE_HOLD_MS, DATE_TRAVEL_MS, filterCollectionDate } from "@/lib/collection-timeline";
@@ -22,7 +22,6 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 const DEFAULT_GROUP = effectGroups.includes("Missense") ? "Missense" : effectGroups[0] ?? "";
 // Core mutations (in every sample) are never offered: they would light up every district.
 // They stay in mutation_info.csv and the matrix.
@@ -97,7 +96,6 @@ function Index() {
     setHover(null);
     setPlaying(true);
   };
-  const shown = filterCollectionDate(stateHits, selectedDate);
   const carriers = new Set(filterCollectionDate(hits, selectedDate).map((h) => h.id));
   const seek = (date: string) => {
     const index = dates.indexOf(date);
@@ -110,7 +108,6 @@ function Index() {
   const chooseGroup = (g: string) => { resetTimeline(); setGroup(g); setGene(ALL_GENES); setKey(mutationsFor(g, false)[0]?.key ?? ALL_MUTATIONS); };
   const chooseGene = (g: string) => { resetTimeline(); setGene(g); setKey(g === ALL_GENES ? mutationsFor(group, false)[0]?.key ?? ALL_MUTATIONS : ALL_MUTATIONS); };
 
-  const subject = allMode ? `all ${countLabel}` : snp ? snp.label : "selected mutation";
   const cards: [string, string | number][] = allMode
     ? [
         ["Effect", effectName], ["Gene", geneName || "All genes"], ["Mutations", options.length],
@@ -197,28 +194,6 @@ function Index() {
               <Timeline hits={stateHits.filter((h) => h.date)} selectedDate={selectedDate} cursorTime={frame?.time ?? null} playing={playing} complete={frame?.complete ?? false} onPlayPause={playPause} onRestart={resetTimeline} onSeek={seek} />
             </div>
           </Panel>
-            <Panel icon={Table2} title={`Samples carrying ${subject}`}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>{["Sample ID", "State", "District", "Location", "Collection Date", allMode ? "Count" : "Status"].map((h) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {shown.map((h) => (
-                      <tr key={h.id} onMouseEnter={() => setHover(h.id)} onMouseLeave={() => setHover(null)} className={`row-hover border-b border-border/60 ${hover === h.id ? "row-active" : ""}`}>
-                        <td className="px-3 py-2 font-mono text-xs">{h.sampleId}<span className="block text-[10px] text-muted-foreground">{h.id}</span></td>
-                        <td className="px-3 py-2"><span className={`inline-flex items-center gap-1.5`}><span className={`h-2 w-2 rounded-full ${h.state === "Maharashtra" ? "bg-mh" : "bg-od"}`} />{h.state}</span></td>
-                        <td className="px-3 py-2"><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: districtTone(h.state, h.district) }} />{h.district}</span></td>
-                        <td className="px-3 py-2 text-xs">{h.location}</td>
-                        <td className="px-3 py-2 font-mono text-xs">{h.date ? fmt(h.date) : "—"}</td>
-                        <td className="px-3 py-2"><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{h.status}</span></td>
-                      </tr>
-                    ))}
-                    {shown.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">{allMode || snp ? "No samples match the selection, state and collection date." : "Pick an effect and a mutation above."}</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
         </div>
 
         <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> Samples are plotted at district centroids, matched by LGD code. Core mutations (present in every sample) are not listed; they are in mutation_info.csv. State and national boundaries: DataMeet (official Survey of India outline); district boundaries: Dharini (LGD). Reference genome: {reference}</p>

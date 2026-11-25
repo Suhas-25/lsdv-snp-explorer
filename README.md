@@ -2,7 +2,7 @@
 
 Interactive dashboard for **Level 2: mutation distribution** of Lumpy Skin Disease Virus (LSDV) in India.
 Pick a mutation effect, optionally a gene, then a mutation, and see which samples carry it on a
-district-level India map, a collection timeline, and a sample table.
+district-level India map and a collection timeline.
 
 This branch (`dharini-matrix`) runs on **real data**: annotated VCFs from the Dharini `snippy-fasta`
 pipeline, merged into a samples × mutations matrix, with districts matched by **LGD code** to
@@ -27,7 +27,6 @@ Dharini's own district boundaries.
 | **Mutation cards** | Position, change, gene, protein change, effect, impact, carriers (n of N, %) |
 | **Summary cards** | Samples carrying the selection, split by Maharashtra / Odisha (click to filter) |
 | **Timeline** | Real collection dates with play / pause / reset; the map zooms to each date's districts |
-| **Table** | Sample ID + GenBank ID, state, district, village, date, status or count |
 
 **Selection flow: Effect → Gene → Mutation**
 
@@ -126,7 +125,7 @@ Synonymous 83, Frameshift 81, Missense 56, Non-coding 40, In-frame indel 12, Sto
 | `src/components/IndiaMap.tsx` | Map: state outlines, LGD district shapes, sample dots, labels (with counts in "All" mode), tooltips, playback zoom |
 | `src/components/Timeline.tsx` | Collection timeline with playback |
 | `src/lib/collection-timeline.ts` | Date grouping, filtering and playback frames (shared by timeline, map and tests) |
-| `src/routes/index.tsx` | Dashboard page: Effect → Gene → Mutation selection, cards, map, timeline, table |
+| `src/routes/index.tsx` | Dashboard page: Effect → Gene → Mutation selection, cards, map, timeline |
 | `src/lib/*.test.ts` | Vitest tests for timeline playback and effect/gene/mutation selection |
 
 ---

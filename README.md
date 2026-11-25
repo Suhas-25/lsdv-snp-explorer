@@ -21,7 +21,7 @@ Dharini's own district boundaries.
 | **Gene dropdown** | Genes that have mutations of the chosen effect, in genome order, with counts (e.g. `LSDV047 (1)`); "All genes" = no gene filter |
 | **Mutation dropdown** | Only mutations of the chosen effect and gene, most common first (e.g. `41403 GA→G · LSDV047 · 4/5`) |
 | **All [selection]** | First option in the mutation list (e.g. "All Frameshift mutations in LSDV047"): the map shows, per district, how many of those mutations its samples carry |
-| **Include core** | Core mutations (present in every sample) are hidden by default, since they light up every district |
+| **Core mutations not listed** | Mutations present in every sample are left out of all dropdowns and counts (they would light up every district); the header shows how many. They remain in `mutation_info.csv` and the matrix |
 | **India map** | Dharini district shapes; carrier districts shaded, one dot per sample (filled = carries the mutation, hollow = absent) |
 | **Sample tooltip** | Lab name, GenBank ID, village, district, date, presence or count, total/private mutations, effect breakdown |
 | **Mutation cards** | Position, change, gene, protein change, effect, impact, carriers (n of N, %), class |
@@ -43,7 +43,8 @@ Frameshift (72)  →  All genes (45)     →  All Frameshift mutations (72)
   without scrolling the whole list. Gene names come from snpEff (`ANN` Gene_Name); non-coding mutations carry the nearest gene's name.
 
 **Mutation classes**
-- **core** – in every sample (lineage differences from the reference)
+- **core** – in every sample (lineage differences from the reference); not listed in the dashboard.
+  "Core" depends on the sample set: with more samples many of today's core mutations become shared and will appear
 - **shared** – in some samples (the informative ones)
 - **singleton** – in one sample only (new mutation or possible artefact)
 

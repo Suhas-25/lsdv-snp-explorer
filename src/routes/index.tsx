@@ -24,6 +24,9 @@ export const Route = createFileRoute("/")({
 
 const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 const DEFAULT_GROUP = effectGroups.includes("Missense") ? "Missense" : effectGroups[0] ?? "";
+// Core mutations (in every sample) are never offered: they would light up every district.
+// They stay in mutation_info.csv and the matrix.
+const coreCount = snps.filter((s) => s.cls === "core").length;
 const CLASS_LABEL: Record<string, string> = { core: "Core · all samples", shared: "Shared", singleton: "Singleton · 1 sample" };
 
 function Panel({ icon: Icon, title, children, className = "", dense = false }: { icon: typeof Dna; title: string; children: React.ReactNode; className?: string; dense?: boolean }) {
@@ -41,20 +44,19 @@ function Panel({ icon: Icon, title, children, className = "", dense = false }: {
 function Index() {
   const [hover, setHover] = useState<string | null>(null);
 
-  // Effect → Gene → Mutation selection. Core mutations (in every sample) are hidden unless asked for.
+  // Effect → Gene → Mutation selection (non-core mutations only).
   const [group, setGroup] = useState(DEFAULT_GROUP);
   const [gene, setGene] = useState(ALL_GENES);
-  const [includeCore, setIncludeCore] = useState(false);
-  const genes = useMemo(() => genesFor(group, includeCore), [group, includeCore]);
-  const options = useMemo(() => mutationsFor(group, includeCore, gene), [group, includeCore, gene]);
+  const genes = useMemo(() => genesFor(group, false), [group]);
+  const options = useMemo(() => mutationsFor(group, false, gene), [group, gene]);
   const [key, setKey] = useState(() => mutationsFor(DEFAULT_GROUP, false)[0]?.key ?? ALL_MUTATIONS);
   const allMode = key === ALL_MUTATIONS;
   const snp = allMode ? null : snps.find((s) => s.key === key) ?? null;
-  const counts = useMemo(() => (allMode ? effectCounts(group, includeCore, gene) : null), [allMode, group, includeCore, gene]);
+  const counts = useMemo(() => (allMode ? effectCounts(group, false, gene) : null), [allMode, group, gene]);
   const effectName = group === ALL_EFFECTS ? "All effects" : group;
   const geneName = gene === ALL_GENES ? "" : gene;
   const scope = `${group === ALL_EFFECTS ? "" : `${group} `}mutations${geneName ? ` in ${geneName}` : ""}`;  // e.g. "Frameshift mutations in LSDV047"
-  const countLabel = `${includeCore ? "" : "non-core "}${scope.charAt(0).toLowerCase()}${scope.slice(1)}`;
+  const countLabel = `${scope.charAt(0).toLowerCase()}${scope.slice(1)}`;
 
   const hits = useMemo(() => {
     if (counts) return samples.filter((s) => (counts.get(s.id) ?? 0) > 0).map((s) => ({ ...s, status: `${counts.get(s.id)} mutations` }));
@@ -106,15 +108,8 @@ function Index() {
   const toggle = (f: "Maharashtra" | "Odisha") => { resetTimeline(); setFilter((c) => (c === f ? "all" : f)); };
 
   // Changing the effect resets the gene; changing the effect or gene jumps to the first mutation of the new list.
-  const chooseGroup = (g: string) => { resetTimeline(); setGroup(g); setGene(ALL_GENES); setKey(mutationsFor(g, includeCore)[0]?.key ?? ALL_MUTATIONS); };
-  const chooseGene = (g: string) => { resetTimeline(); setGene(g); setKey(g === ALL_GENES ? mutationsFor(group, includeCore)[0]?.key ?? ALL_MUTATIONS : ALL_MUTATIONS); };
-  const chooseCore = (on: boolean) => {
-    resetTimeline(); setIncludeCore(on);
-    // Unticking core can empty the chosen gene; fall back to all genes.
-    const g = gene !== ALL_GENES && !genesFor(group, on).some((x) => x.gene === gene) ? ALL_GENES : gene;
-    setGene(g);
-    if (!allMode && !mutationsFor(group, on, g).some((m) => m.key === key)) setKey(mutationsFor(group, on, g)[0]?.key ?? ALL_MUTATIONS);
-  };
+  const chooseGroup = (g: string) => { resetTimeline(); setGroup(g); setGene(ALL_GENES); setKey(mutationsFor(g, false)[0]?.key ?? ALL_MUTATIONS); };
+  const chooseGene = (g: string) => { resetTimeline(); setGene(g); setKey(g === ALL_GENES ? mutationsFor(group, false)[0]?.key ?? ALL_MUTATIONS : ALL_MUTATIONS); };
 
   const subject = allMode ? `all ${countLabel}` : snp ? snp.label : "selected mutation";
   const cards: [string, string | number][] = allMode
@@ -138,13 +133,13 @@ function Index() {
           <div className="flex-1">
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] opacity-75">LSDV Genomic Surveillance · Level 2</p>
             <h1 className="font-display text-xl font-bold md:text-2xl">Mutation Distribution</h1>
-            <p className="font-mono text-[11px] opacity-75">Reference {reference} · {samples.length} NCL-BAIF isolates (Dharini snippy-fasta) · {snps.length} mutations · {new Set(samples.map((s) => s.state)).size} states</p>
+            <p className="font-mono text-[11px] opacity-75">Reference {reference} · {samples.length} NCL-BAIF isolates (Dharini snippy-fasta) · {snps.length} mutations ({coreCount} core, in every sample, not listed) · {new Set(samples.map((s) => s.state)).size} states</p>
           </div>
           <label className="flex min-w-[170px] flex-col gap-0.5">
             <span className="text-[11px] font-medium uppercase tracking-wider opacity-80">Effect</span>
             <select value={group} onChange={(e) => chooseGroup(e.target.value)} className="snp-select">
-              <option value={ALL_EFFECTS}>All effects ({mutationsFor(ALL_EFFECTS, includeCore).length})</option>
-              {effectGroups.map((g) => <option key={g} value={g}>{g} ({mutationsFor(g, includeCore).length})</option>)}
+              <option value={ALL_EFFECTS}>All effects ({mutationsFor(ALL_EFFECTS, false).length})</option>
+              {effectGroups.map((g) => <option key={g} value={g}>{g} ({mutationsFor(g, false).length})</option>)}
             </select>
           </label>
           <label className="flex min-w-[150px] flex-col gap-0.5">
@@ -161,10 +156,6 @@ function Index() {
               {options.map((s) => <option key={s.key} value={s.key}>{s.label} · {s.count}/{samples.length}</option>)}
             </select>
           </label>
-          <label className="flex items-center gap-2 pb-2 text-xs opacity-90">
-            <input type="checkbox" checked={includeCore} onChange={(e) => chooseCore(e.target.checked)} className="h-3.5 w-3.5 accent-current" />
-            Include core
-          </label>
         </div>
       </header>
 
@@ -176,14 +167,14 @@ function Index() {
         </div>
 
         <div className="min-w-0 space-y-4">
-            <Panel icon={Dna} title={allMode ? `All ${scope}${includeCore ? "" : " (non-core)"}` : "Selected mutation"}>
+            <Panel icon={Dna} title={allMode ? `All ${scope}` : "Selected mutation"}>
               {cards.length ? (
                 <dl className={`grid grid-cols-2 gap-3 font-mono text-sm ${allMode ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
                   {cards.map(([k, v]) => (
                     <div key={k} className="tile-pop min-w-0 rounded-lg bg-muted px-3 py-2"><dt className="text-[11px] uppercase text-muted-foreground">{k}</dt><dd className="truncate text-lg font-semibold text-foreground" title={String(v)}>{v}</dd></div>
                   ))}
                 </dl>
-              ) : <p className="text-sm text-muted-foreground">No {countLabel} here. Tick “Include core” or pick another effect or gene.</p>}
+              ) : <p className="text-sm text-muted-foreground">No {countLabel} outside the core. Pick another effect or gene.</p>}
             </Panel>
           <Panel icon={MapPinned} title="Geographic distribution" dense>
             <div className="mx-auto h-[min(65vh,600px)] min-h-[340px] w-full">
@@ -231,7 +222,7 @@ function Index() {
             </Panel>
         </div>
 
-        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> Samples are plotted at district centroids, matched by LGD code. Core = present in every sample (hidden unless “Include core” is ticked). State and national boundaries: DataMeet (official Survey of India outline); district boundaries: Dharini (LGD). Reference genome: {reference}</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground"><Activity className="h-3.5 w-3.5" /> Samples are plotted at district centroids, matched by LGD code. Core mutations (present in every sample) are not listed; they are in mutation_info.csv. State and national boundaries: DataMeet (official Survey of India outline); district boundaries: Dharini (LGD). Reference genome: {reference}</p>
       </main>
     </div>
   );

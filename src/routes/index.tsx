@@ -27,7 +27,6 @@ const DEFAULT_GROUP = effectGroups.includes("Missense") ? "Missense" : effectGro
 // Core mutations (in every sample) are never offered: they would light up every district.
 // They stay in mutation_info.csv and the matrix.
 const coreCount = snps.filter((s) => s.cls === "core").length;
-const CLASS_LABEL: Record<string, string> = { core: "Core · all samples", shared: "Shared", singleton: "Singleton · 1 sample" };
 
 function Panel({ icon: Icon, title, children, className = "", dense = false }: { icon: typeof Dna; title: string; children: React.ReactNode; className?: string; dense?: boolean }) {
   return (
@@ -122,7 +121,7 @@ function Index() {
       ? [
           ["Position", snp.position], ["Change", `${snp.ref}→${snp.alt}`], ["Gene", snp.gene || "—"], ["Protein", snp.protein || "—"],
           ["Effect", snp.effect.replaceAll("_variant", "").replaceAll("_", " ").replaceAll("&", " + ")], ["Impact", snp.impact || "—"],
-          ["Carriers", `${snp.count} of ${samples.length} (${Math.round(snp.freq * 100)}%)`], ["Class", CLASS_LABEL[snp.cls] ?? snp.cls],
+          ["Carriers", `${snp.count} of ${samples.length} (${Math.round(snp.freq * 100)}%)`],
         ]
       : [];
 

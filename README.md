@@ -24,7 +24,7 @@ Dharini's own district boundaries.
 | **Core mutations not listed** | Mutations present in every sample are left out of all dropdowns and counts (they would light up every district); the header shows how many. They remain in `mutation_info.csv` and the matrix |
 | **India map** | Dharini district shapes; carrier districts shaded, one dot per sample (filled = carries the mutation, hollow = absent) |
 | **Sample tooltip** | Lab name, GenBank ID, village, district, date, presence or count, total/private mutations, effect breakdown |
-| **Mutation cards** | Position, change, gene, protein change, effect, impact, carriers (n of N, %), class |
+| **Mutation cards** | Position, change, gene, protein change, effect, impact, carriers (n of N, %) |
 | **Summary cards** | Samples carrying the selection, split by Maharashtra / Odisha (click to filter) |
 | **Timeline** | Real collection dates with play / pause / reset; the map zooms to each date's districts |
 | **Table** | Sample ID + GenBank ID, state, district, village, date, status or count |
